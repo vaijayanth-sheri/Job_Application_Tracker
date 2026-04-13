@@ -62,6 +62,7 @@ export default function SkillsPage() {
     if (error) addToast('Failed to load skills', 'error');
     setSkills(data || []);
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

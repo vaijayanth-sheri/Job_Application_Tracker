@@ -89,6 +89,7 @@ export default function JobsPage() {
     }
     setJobs(data || []);
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

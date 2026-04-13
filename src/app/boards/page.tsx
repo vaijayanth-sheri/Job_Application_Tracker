@@ -42,6 +42,7 @@ export default function BoardsPage() {
     if (error) addToast('Failed to load boards', 'error');
     setBoards(data || []);
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
