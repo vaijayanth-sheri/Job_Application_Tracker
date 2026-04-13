@@ -76,12 +76,12 @@ export default function CompaniesPage() {
 
   // Derive unique sector and location values for filter dropdowns
   const sectors = useMemo(() => {
-    const unique = [...new Set(companies.map((c) => c.sector).filter(Boolean))].sort();
+    const unique = Array.from(new Set(companies.map((c) => c.sector).filter(Boolean))).sort();
     return unique;
   }, [companies]);
 
   const locations = useMemo(() => {
-    const unique = [...new Set(companies.map((c) => c.location).filter(Boolean))].sort();
+    const unique = Array.from(new Set(companies.map((c) => c.location).filter(Boolean))).sort();
     return unique;
   }, [companies]);
 
