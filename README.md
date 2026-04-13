@@ -13,6 +13,7 @@ A lightweight, fast, and intuitive web application to track job applications, jo
 
 - **Dashboard** — Stats overview with total, applied, interview, rejected, offers count. Filter by status and date range.
 - **Jobs** — Full data table with search, filter, sort, inline status editing, and modal forms for create/edit.
+- **Companies** — Track companies of interest with sector tags, interest-level stars, LinkedIn connections, and website quick-links.
 - **Job Boards** — Card-based layout with quick-access links, keyword tags, and browsed-date tracking.
 - **Skills** — Track skill gaps grouped by category with priority levels, progress bars, and click-to-cycle status.
 - **Auth** — Email/password authentication via Supabase Auth.
@@ -67,7 +68,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 3. Paste the contents of `supabase_schema.sql`
 4. Click **Run**
 
-This creates the `jobs`, `job_boards`, and `skills` tables with Row-Level Security policies.
+This creates the `jobs`, `companies`, `job_boards`, and `skills` tables with Row-Level Security policies.
 
 ### 5. Enable Email Auth
 
@@ -129,6 +130,7 @@ src/
 │   ├── login/page.tsx       # Auth page
 │   ├── dashboard/page.tsx   # Dashboard with stats
 │   ├── jobs/page.tsx        # Jobs table + CRUD
+│   ├── companies/page.tsx   # Companies table + CRUD
 │   ├── boards/page.tsx      # Job boards cards + CRUD
 │   ├── skills/page.tsx      # Skills cards + CRUD
 │   └── auth/callback/route.ts  # Auth callback

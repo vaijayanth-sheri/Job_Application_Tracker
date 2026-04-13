@@ -146,3 +146,53 @@ CREATE INDEX IF NOT EXISTS idx_jobs_applied_date ON jobs(applied_date);
 CREATE INDEX IF NOT EXISTS idx_job_boards_user_id ON job_boards(user_id);
 CREATE INDEX IF NOT EXISTS idx_skills_user_id ON skills(user_id);
 CREATE INDEX IF NOT EXISTS idx_skills_status ON skills(status);
+
+-- ==================
+-- COMPANIES TABLE
+-- ==================
+CREATE TABLE IF NOT EXISTS companies (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  company_name TEXT NOT NULL,
+  sector TEXT DEFAULT '',
+  website_link TEXT DEFAULT '',
+  location TEXT DEFAULT '',
+  interest_level INTEGER DEFAULT 3
+    CHECK (interest_level >= 1 AND interest_level <= 5),
+  last_reviewed DATE DEFAULT CURRENT_DATE,
+  linkedin_connections TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Companies RLS
+ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own companies"
+  ON companies FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own companies"
+  ON companies FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own companies"
+  ON companies FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own companies"
+  ON companies FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Companies updated_at trigger
+CREATE TRIGGER update_companies_updated_at
+  BEFORE UPDATE ON companies
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Companies indexes
+CREATE INDEX IF NOT EXISTS idx_companies_user_id ON companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_companies_sector ON companies(sector);
+CREATE INDEX IF NOT EXISTS idx_companies_interest_level ON companies(interest_level);

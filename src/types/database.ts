@@ -46,7 +46,23 @@ export interface Skill {
   created_at: string;
 }
 
+export interface Company {
+  id: string;
+  user_id: string;
+  company_name: string;
+  sector: string;
+  website_link: string;
+  location: string;
+  interest_level: number;
+  last_reviewed: string;
+  linkedin_connections: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Form types (without id, user_id, timestamps)
 export type JobFormData = Omit<Job, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
 export type JobBoardFormData = Omit<JobBoard, 'id' | 'user_id' | 'created_at'>;
 export type SkillFormData = Omit<Skill, 'id' | 'user_id' | 'created_at'>;
+export type CompanyFormData = Omit<Company, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
