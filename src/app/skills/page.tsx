@@ -12,6 +12,7 @@ import {
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
+import Combobox from '@/components/ui/Combobox';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -68,6 +69,10 @@ export default function SkillsPage() {
   useEffect(() => {
     fetchSkills();
   }, [fetchSkills]);
+
+  // Distinct values for smart suggestions
+  const uniqueSkills = Array.from(new Set(skills.map((s) => s.skill_name).filter(Boolean)));
+  const uniqueCategories = Array.from(new Set(skills.map((s) => s.category).filter(Boolean)));
 
   const filtered = useMemo(() => {
     let result = skills;
@@ -347,17 +352,19 @@ export default function SkillsPage() {
         title={editingSkill ? 'Edit Skill' : 'Add New Skill'}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <Input
+          <Combobox
             label="Skill Name *"
+            options={uniqueSkills}
             value={form.skill_name}
-            onChange={(e) => setForm({ ...form, skill_name: e.target.value })}
+            onChange={(val) => setForm({ ...form, skill_name: val })}
             required
             placeholder="TypeScript, Docker, etc."
           />
-          <Input
+          <Combobox
             label="Category"
+            options={uniqueCategories}
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
+            onChange={(val) => setForm({ ...form, category: val })}
             placeholder="Frontend, DevOps, Soft Skills..."
           />
           <div className="grid grid-cols-2 gap-4">

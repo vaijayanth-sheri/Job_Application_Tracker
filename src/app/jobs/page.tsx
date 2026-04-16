@@ -14,6 +14,7 @@ import {
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
+import Combobox from '@/components/ui/Combobox';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -125,6 +126,11 @@ export default function JobsPage() {
     });
     return result;
   }, [jobs, search, filterStatus, filterRelevancy, sortField, sortDir]);
+
+  // Distinct values for smart suggestions
+  const uniqueCompanies = useMemo(() => Array.from(new Set(jobs.map((j) => j.company).filter(Boolean))), [jobs]);
+  const uniqueLocations = useMemo(() => Array.from(new Set(jobs.map((j) => j.location).filter(Boolean))), [jobs]);
+  const uniqueStages = useMemo(() => Array.from(new Set(jobs.map((j) => j.interview_stage).filter(Boolean))), [jobs]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -448,17 +454,19 @@ export default function JobsPage() {
               required
               placeholder="Software Engineer"
             />
-            <Input
+            <Combobox
               label="Company"
+              options={uniqueCompanies}
               value={form.company}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}
-              placeholder="Google"
+              onChange={(val) => setForm({ ...form, company: val })}
+              placeholder="Google, Microsoft..."
             />
-            <Input
+            <Combobox
               label="Location"
+              options={uniqueLocations}
               value={form.location}
-              onChange={(e) => setForm({ ...form, location: e.target.value })}
-              placeholder="Berlin, Germany"
+              onChange={(val) => setForm({ ...form, location: val })}
+              placeholder="Berlin, Remote..."
             />
             <Input
               label="Applied Date"
@@ -484,10 +492,11 @@ export default function JobsPage() {
               value={String(form.interest_level)}
               onChange={(e) => setForm({ ...form, interest_level: parseInt(e.target.value) })}
             />
-            <Input
+            <Combobox
               label="Interview Stage"
+              options={uniqueStages}
               value={form.interview_stage}
-              onChange={(e) => setForm({ ...form, interview_stage: e.target.value })}
+              onChange={(val) => setForm({ ...form, interview_stage: val })}
               placeholder="Phone screen, On-site..."
             />
           </div>

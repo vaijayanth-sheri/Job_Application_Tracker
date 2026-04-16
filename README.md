@@ -16,9 +16,11 @@ A lightweight, fast, and intuitive web application to track job applications, jo
 - **Companies** — Track companies of interest with sector tags, interest-level stars, LinkedIn connections, and website quick-links.
 - **Job Boards** — Card-based layout with quick-access links, keyword tags, and browsed-date tracking.
 - **Skills** — Track skill gaps grouped by category with priority levels, progress bars, and click-to-cycle status.
+- **Smart Suggestions** — Auto-complete dropdowns automatically derive previous entries (like company names, locations, and sectors) to speed up data entry without heavy database reads.
 - **Auth** — Email/password authentication via Supabase Auth.
 - **RLS** — Row-Level Security ensures data is private per user.
-- **Responsive** — Works on desktop and mobile.
+- **Optimized Database** — Strict `VARCHAR` types, smart index targeting, and automatic `updated_at` timestamps for performance.
+- **Responsive** — Works natively on desktop and mobile.
 
 ---
 
@@ -142,6 +144,7 @@ src/
 │       ├── Button.tsx
 │       ├── ConfirmDialog.tsx
 │       ├── Input.tsx
+│       ├── Combobox.tsx     # Smart auto-complete input
 │       ├── Modal.tsx
 │       ├── Select.tsx
 │       └── Toast.tsx

@@ -7,6 +7,7 @@ import { formatDate, toInputDate, cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
+import Combobox from '@/components/ui/Combobox';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -429,16 +430,18 @@ export default function CompaniesPage() {
               required
               placeholder="Google, Apple, etc."
             />
-            <Input
+            <Combobox
               label="Sector"
+              options={sectors}
               value={form.sector}
-              onChange={(e) => setForm({ ...form, sector: e.target.value })}
+              onChange={(val) => setForm({ ...form, sector: val })}
               placeholder="Tech, Finance, Healthcare..."
             />
-            <Input
+            <Combobox
               label="Location"
+              options={locations}
               value={form.location}
-              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              onChange={(val) => setForm({ ...form, location: val })}
               placeholder="Berlin, Germany"
             />
             <Input

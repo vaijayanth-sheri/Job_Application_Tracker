@@ -6,6 +6,7 @@ import { type JobBoard, type JobBoardFormData } from '@/types/database';
 import { formatDate, toInputDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Combobox from '@/components/ui/Combobox';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
@@ -48,6 +49,10 @@ export default function BoardsPage() {
   useEffect(() => {
     fetchBoards();
   }, [fetchBoards]);
+
+  // Distinct values for smart suggestions
+  const uniqueSites = Array.from(new Set(boards.map((b) => b.site).filter(Boolean)));
+  const uniqueKeywords = Array.from(new Set(boards.map((b) => b.keywords).filter(Boolean)));
 
   const filtered = boards.filter(
     (b) =>
@@ -281,10 +286,11 @@ export default function BoardsPage() {
         title={editingBoard ? 'Edit Board' : 'Add New Board'}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <Input
+          <Combobox
             label="Site Name *"
+            options={uniqueSites}
             value={form.site}
-            onChange={(e) => setForm({ ...form, site: e.target.value })}
+            onChange={(val) => setForm({ ...form, site: val })}
             required
             placeholder="LinkedIn, Indeed, etc."
           />
@@ -301,10 +307,11 @@ export default function BoardsPage() {
             value={form.last_browsed}
             onChange={(e) => setForm({ ...form, last_browsed: e.target.value })}
           />
-          <Input
+          <Combobox
             label="Keywords"
+            options={uniqueKeywords}
             value={form.keywords}
-            onChange={(e) => setForm({ ...form, keywords: e.target.value })}
+            onChange={(val) => setForm({ ...form, keywords: val })}
             placeholder="React, Senior, Remote (comma-separated)"
           />
           <div className="space-y-1.5">

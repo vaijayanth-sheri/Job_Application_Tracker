@@ -11,17 +11,17 @@
 CREATE TABLE IF NOT EXISTS jobs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  title TEXT NOT NULL,
-  company TEXT DEFAULT '',
+  title VARCHAR(100) NOT NULL,
+  company VARCHAR(100) DEFAULT '',
   applied_date DATE DEFAULT CURRENT_DATE,
-  location TEXT DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'wishlist'
+  location VARCHAR(50) DEFAULT '',
+  status VARCHAR(20) NOT NULL DEFAULT 'wishlist'
     CHECK (status IN ('wishlist', 'applied', 'interview', 'offer', 'rejected')),
-  relevancy TEXT DEFAULT 'medium'
+  relevancy VARCHAR(20) DEFAULT 'medium'
     CHECK (relevancy IN ('low', 'medium', 'high')),
   interest_level INTEGER DEFAULT 3
     CHECK (interest_level >= 1 AND interest_level <= 5),
-  interview_stage TEXT DEFAULT '',
+  interview_stage VARCHAR(50) DEFAULT '',
   job_link TEXT DEFAULT '',
   notes TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -34,12 +34,13 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE TABLE IF NOT EXISTS job_boards (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  site TEXT NOT NULL,
+  site VARCHAR(50) NOT NULL,
   link TEXT DEFAULT '',
   last_browsed DATE DEFAULT CURRENT_DATE,
-  keywords TEXT DEFAULT '',
+  keywords VARCHAR(100) DEFAULT '',
   notes TEXT DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ==================
@@ -48,14 +49,15 @@ CREATE TABLE IF NOT EXISTS job_boards (
 CREATE TABLE IF NOT EXISTS skills (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  skill_name TEXT NOT NULL,
-  category TEXT DEFAULT '',
-  priority TEXT DEFAULT 'medium'
+  skill_name VARCHAR(100) NOT NULL,
+  category VARCHAR(50) DEFAULT '',
+  priority VARCHAR(20) DEFAULT 'medium'
     CHECK (priority IN ('low', 'medium', 'high')),
-  status TEXT NOT NULL DEFAULT 'to_learn'
+  status VARCHAR(20) NOT NULL DEFAULT 'to_learn'
     CHECK (status IN ('to_learn', 'in_progress', 'learned')),
   notes TEXT DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ==================
@@ -153,10 +155,10 @@ CREATE INDEX IF NOT EXISTS idx_skills_status ON skills(status);
 CREATE TABLE IF NOT EXISTS companies (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  company_name TEXT NOT NULL,
-  sector TEXT DEFAULT '',
+  company_name VARCHAR(100) NOT NULL,
+  sector VARCHAR(50) DEFAULT '',
   website_link TEXT DEFAULT '',
-  location TEXT DEFAULT '',
+  location VARCHAR(50) DEFAULT '',
   interest_level INTEGER DEFAULT 3
     CHECK (interest_level >= 1 AND interest_level <= 5),
   last_reviewed DATE DEFAULT CURRENT_DATE,
