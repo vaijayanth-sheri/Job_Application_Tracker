@@ -198,3 +198,20 @@ CREATE TRIGGER update_companies_updated_at
 CREATE INDEX IF NOT EXISTS idx_companies_user_id ON companies(user_id);
 CREATE INDEX IF NOT EXISTS idx_companies_sector ON companies(sector);
 CREATE INDEX IF NOT EXISTS idx_companies_interest_level ON companies(interest_level);
+
+-- ==================
+-- INGESTION LOGS TABLE
+-- ==================
+CREATE TABLE IF NOT EXISTS ingestion_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  batch_id VARCHAR(50) NOT NULL,
+  status VARCHAR(20) NOT NULL CHECK (status IN ('success', 'partial', 'failed')),
+  records_processed INTEGER DEFAULT 0,
+  records_inserted INTEGER DEFAULT 0,
+  errors JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Note: No RLS on ingestion_logs because it is managed entirely by the secure server API
+-- using the Service Role Key. If dashboard access is needed later, RLS can be added.
+
