@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { type JobBoard, type JobBoardFormData } from '@/types/database';
+import { type JobBoardDisplay, type JobBoardFormData } from '@/types/database';
 import { formatDate, toInputDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -20,16 +20,16 @@ const EMPTY_FORM: JobBoardFormData = {
 };
 
 export default function BoardsPage() {
-  const [boards, setBoards] = useState<JobBoard[]>([]);
+  const [boards, setBoards] = useState<JobBoardDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingBoard, setEditingBoard] = useState<JobBoard | null>(null);
+  const [editingBoard, setEditingBoard] = useState<JobBoardDisplay | null>(null);
   const [form, setForm] = useState<JobBoardFormData>(EMPTY_FORM);
 
-  const [deleteTarget, setDeleteTarget] = useState<JobBoard | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<JobBoardDisplay | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const supabase = createClient();
@@ -37,11 +37,26 @@ export default function BoardsPage() {
 
   const fetchBoards = useCallback(async () => {
     const { data, error } = await supabase
-      .from('job_boards')
-      .select('*')
+      .from('user_job_boards')
+      .select('*, job_boards(*)')
       .order('last_browsed', { ascending: false });
     if (error) addToast('Failed to load boards', 'error');
-    setBoards(data || []);
+    
+    const flattened: JobBoardDisplay[] = (data || []).map((row: any) => ({
+      user_job_board_id: row.id,
+      user_id: row.user_id,
+      job_board_id: row.job_board_id,
+      last_browsed: row.last_browsed,
+      keywords: row.keywords,
+      notes: row.notes,
+      id: row.job_boards.id,
+      site: row.job_boards.site,
+      link: row.job_boards.link,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
+
+    setBoards(flattened);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -66,7 +81,7 @@ export default function BoardsPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (board: JobBoard) => {
+  const openEdit = (board: JobBoardDisplay) => {
     setEditingBoard(board);
     setForm({
       site: board.site,
@@ -83,18 +98,58 @@ export default function BoardsPage() {
     setSaving(true);
 
     try {
-      if (editingBoard) {
-        const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      let globalBoardId = editingBoard?.id;
+
+      if (!globalBoardId) {
+        const { data: existing } = await supabase
           .from('job_boards')
-          .update(form)
-          .eq('id', editingBoard.id);
+          .select('id')
+          .ilike('site', form.site)
+          .maybeSingle();
+
+        if (existing) {
+          globalBoardId = existing.id;
+        } else {
+          const { data: newBoard, error: createError } = await supabase
+            .from('job_boards')
+            .insert({ site: form.site, link: form.link })
+            .select()
+            .single();
+          if (createError) throw createError;
+          globalBoardId = newBoard.id;
+        }
+      } else {
+        const { error: updateGlobalError } = await supabase
+          .from('job_boards')
+          .update({ site: form.site, link: form.link })
+          .eq('id', globalBoardId);
+        if (updateGlobalError) throw updateGlobalError;
+      }
+
+      if (editingBoard?.user_job_board_id) {
+        const { error } = await supabase
+          .from('user_job_boards')
+          .update({
+            last_browsed: form.last_browsed,
+            keywords: form.keywords,
+            notes: form.notes
+          })
+          .eq('id', editingBoard.user_job_board_id);
         if (error) throw error;
         addToast('Board updated');
       } else {
-        const { data: { user } } = await supabase.auth.getUser();
         const { error } = await supabase
-          .from('job_boards')
-          .insert({ ...form, user_id: user!.id });
+          .from('user_job_boards')
+          .insert({
+            user_id: user.id,
+            job_board_id: globalBoardId,
+            last_browsed: form.last_browsed,
+            keywords: form.keywords,
+            notes: form.notes
+          });
         if (error) throw error;
         addToast('Board added');
       }
@@ -111,7 +166,7 @@ export default function BoardsPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const { error } = await supabase.from('job_boards').delete().eq('id', deleteTarget.id);
+      const { error } = await supabase.from('user_job_boards').delete().eq('id', deleteTarget.user_job_board_id);
       if (error) throw error;
       addToast('Board deleted');
       setDeleteTarget(null);
@@ -124,17 +179,17 @@ export default function BoardsPage() {
   };
 
   // Mark as browsed today
-  const markBrowsed = async (board: JobBoard) => {
+  const markBrowsed = async (board: JobBoardDisplay) => {
     const today = new Date().toISOString().split('T')[0];
     const { error } = await supabase
-      .from('job_boards')
+      .from('user_job_boards')
       .update({ last_browsed: today })
-      .eq('id', board.id);
+      .eq('id', board.user_job_board_id);
     if (error) {
       addToast('Failed to update', 'error');
     } else {
       setBoards((prev) =>
-        prev.map((b) => (b.id === board.id ? { ...b, last_browsed: today } : b))
+        prev.map((b) => (b.user_job_board_id === board.user_job_board_id ? { ...b, last_browsed: today } : b))
       );
       addToast('Marked as browsed today');
     }
@@ -341,7 +396,7 @@ export default function BoardsPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Board"
-        message={`Are you sure you want to delete "${deleteTarget?.site}"?`}
+        message={`Are you sure you want to stop tracking "${deleteTarget?.site}"?`}
         loading={deleting}
       />
     </div>

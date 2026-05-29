@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { type Company, type CompanyFormData } from '@/types/database';
+import { type CompanyDisplay, type CompanyFormData } from '@/types/database';
 import { formatDate, toInputDate, cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -36,7 +36,7 @@ type SortField = 'company_name' | 'interest_level' | 'last_reviewed' | 'sector' 
 type SortDir = 'asc' | 'desc';
 
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companies, setCompanies] = useState<CompanyDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -48,11 +48,11 @@ export default function CompaniesPage() {
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [editingCompany, setEditingCompany] = useState<CompanyDisplay | null>(null);
   const [form, setForm] = useState<CompanyFormData>(EMPTY_FORM);
 
   // Delete state
-  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CompanyDisplay | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const supabase = createClient();
@@ -60,13 +60,32 @@ export default function CompaniesPage() {
 
   const fetchCompanies = useCallback(async () => {
     const { data, error } = await supabase
-      .from('companies')
-      .select('*')
+      .from('user_companies')
+      .select('*, companies(*)')
       .order('created_at', { ascending: false });
+      
     if (error) {
       addToast('Failed to load companies', 'error');
     }
-    setCompanies(data || []);
+    
+    const flattened: CompanyDisplay[] = (data || []).map((row: any) => ({
+      user_company_id: row.id,
+      user_id: row.user_id,
+      company_id: row.company_id,
+      interest_level: row.interest_level,
+      last_reviewed: row.last_reviewed,
+      linkedin_connections: row.linkedin_connections,
+      notes: row.notes,
+      id: row.companies.id,
+      company_name: row.companies.company_name,
+      sector: row.companies.sector,
+      website_link: row.companies.website_link,
+      location: row.companies.location,
+      created_at: row.created_at, // Use the user_company created_at for sorting
+      updated_at: row.updated_at,
+    }));
+    
+    setCompanies(flattened);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -134,7 +153,7 @@ export default function CompaniesPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (company: Company) => {
+  const openEdit = (company: CompanyDisplay) => {
     setEditingCompany(company);
     setForm({
       company_name: company.company_name,
@@ -154,25 +173,87 @@ export default function CompaniesPage() {
     setSaving(true);
 
     try {
-      if (editingCompany) {
-        const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      let globalCompanyId = editingCompany?.id;
+
+      if (!globalCompanyId) {
+        // Look up by name
+        const { data: existingCompany } = await supabase
           .from('companies')
-          .update(form)
-          .eq('id', editingCompany.id);
-        if (error) throw error;
+          .select('id')
+          .ilike('company_name', form.company_name)
+          .maybeSingle();
+
+        if (existingCompany) {
+          globalCompanyId = existingCompany.id;
+        } else {
+          // Create global company
+          const { data: newCompany, error: createError } = await supabase
+            .from('companies')
+            .insert({
+              company_name: form.company_name,
+              sector: form.sector,
+              website_link: form.website_link,
+              location: form.location
+            })
+            .select()
+            .single();
+            
+          if (createError) throw createError;
+          globalCompanyId = newCompany.id;
+        }
+      } else {
+        // Update global company data just in case
+        const { error: updateGlobalError } = await supabase
+          .from('companies')
+          .update({
+            company_name: form.company_name,
+            sector: form.sector,
+            website_link: form.website_link,
+            location: form.location
+          })
+          .eq('id', globalCompanyId);
+          
+        if (updateGlobalError) throw updateGlobalError;
+      }
+
+      // Upsert user_companies
+      if (editingCompany?.user_company_id) {
+        const { error: userCoError } = await supabase
+          .from('user_companies')
+          .update({
+            interest_level: form.interest_level,
+            last_reviewed: form.last_reviewed,
+            linkedin_connections: form.linkedin_connections,
+            notes: form.notes
+          })
+          .eq('id', editingCompany.user_company_id);
+          
+        if (userCoError) throw userCoError;
         addToast('Company updated successfully');
       } else {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase
-          .from('companies')
-          .insert({ ...form, user_id: user!.id });
-        if (error) throw error;
+        const { error: insertUserCoError } = await supabase
+          .from('user_companies')
+          .insert({
+            user_id: user.id,
+            company_id: globalCompanyId,
+            interest_level: form.interest_level,
+            last_reviewed: form.last_reviewed,
+            linkedin_connections: form.linkedin_connections,
+            notes: form.notes
+          });
+          
+        if (insertUserCoError) throw insertUserCoError;
         addToast('Company added successfully');
       }
+
       setModalOpen(false);
       fetchCompanies();
-    } catch {
-      addToast('Failed to save company', 'error');
+    } catch (err: any) {
+      console.error(err);
+      addToast(err.message || 'Failed to save company', 'error');
     } finally {
       setSaving(false);
     }
@@ -183,7 +264,7 @@ export default function CompaniesPage() {
     setDeleting(true);
 
     try {
-      const { error } = await supabase.from('companies').delete().eq('id', deleteTarget.id);
+      const { error } = await supabase.from('user_companies').delete().eq('id', deleteTarget.user_company_id);
       if (error) throw error;
       addToast('Company deleted');
       setDeleteTarget(null);
@@ -497,7 +578,7 @@ export default function CompaniesPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Company"
-        message={`Are you sure you want to delete "${deleteTarget?.company_name}"? This action cannot be undone.`}
+        message={`Are you sure you want to stop tracking "${deleteTarget?.company_name}"?`}
         loading={deleting}
       />
     </div>
