@@ -12,7 +12,7 @@ export default function AIWorkshopPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [jobDescription, setJobDescription] = useState('');
-  const [settings, setSettings] = useState<AISettings | null>(null);
+  const [hasCoreProfile, setHasCoreProfile] = useState<boolean | null>(null);
   
   const [completion, setCompletion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,24 +36,20 @@ export default function AIWorkshopPage() {
       
       if (jobsData) setJobs(jobsData);
 
-      // Fetch AI Settings
-      const { data: settingsData, error: settingsError } = await supabase
-        .from('ai_settings')
-        .select('*')
+      // Check if user has core profile
+      const { data: coreData } = await supabase
+        .from('profile_core')
+        .select('id')
         .eq('user_id', user.id)
         .single();
         
-      if (settingsData) {
-        setSettings(settingsData);
-      } else if (settingsError && settingsError.code !== 'PGRST116') {
-        console.error("Failed to load AI settings", settingsError);
-      }
+      setHasCoreProfile(!!coreData);
     }
   };
 
   const handleGenerate = async () => {
-    if (!settings || !settings.base_cv) {
-      addToast("Please configure your Base CV in AI Settings first!", 'error');
+    if (!hasCoreProfile) {
+      addToast("Please configure your Core Profile in the Profile Database first!", 'error');
       return;
     }
     if (!jobDescription.trim()) {
@@ -70,9 +66,6 @@ export default function AIWorkshopPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          base_cv: settings.base_cv,
-          cover_letter_guidelines: settings.cover_letter_guidelines,
-          formatting_rules: settings.formatting_rules,
           jobDescription: jobDescription,
         })
       });
@@ -111,15 +104,10 @@ export default function AIWorkshopPage() {
     }
   };
 
-  // Split completion into CV Suggestions and Cover Letter
-  const parts = completion.split('### Cover Letter');
-  const cvSuggestionsText = parts[0]?.replace('### CV Suggestions', '').trim() || '';
-  const coverLetterText = parts[1]?.trim() || '';
-
-  const copyToClipboard = (text: string, label: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    addToast(`${label} copied to clipboard!`, 'success');
+  const copyToClipboard = () => {
+    if (!completion) return;
+    navigator.clipboard.writeText(completion);
+    addToast('Content copied to clipboard!', 'success');
   };
 
   return (
@@ -199,43 +187,27 @@ export default function AIWorkshopPage() {
 
         {/* Output Section */}
         {(completion || isLoading) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
-            {/* Panel 1: CV Changes */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col h-[600px]">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">CV Suggestions</h3>
-                <button
-                  onClick={() => copyToClipboard(cvSuggestionsText, 'CV Suggestions')}
-                  className="text-sm font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Copy
-                </button>
-              </div>
-              <div className="flex-1 overflow-auto bg-gray-50 rounded-xl p-4 whitespace-pre-wrap font-mono text-sm text-gray-700">
-                {cvSuggestionsText || 'Generating suggestions...'}
-              </div>
+          <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm animate-fade-in relative min-h-[400px]">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Tailored Application Assets</h3>
+              <button
+                onClick={copyToClipboard}
+                className="text-sm font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1 bg-brand-50 px-3 py-1.5 rounded-lg"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy All
+              </button>
             </div>
-
-            {/* Panel 2: Cover Letter */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col h-[600px]">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Cover Letter</h3>
-                <button
-                  onClick={() => copyToClipboard(coverLetterText, 'Cover Letter')}
-                  className="text-sm font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Copy
-                </button>
+            {isLoading && !completion && (
+              <div className="flex flex-col items-center justify-center h-48 space-y-4 text-brand-600">
+                <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm font-medium animate-pulse">Analyzing candidate database and extracting evidence...</p>
               </div>
-              <div className="flex-1 overflow-auto bg-gray-50 rounded-xl p-4 whitespace-pre-wrap font-mono text-sm text-gray-700">
-                {coverLetterText || 'Generating cover letter...'}
-              </div>
+            )}
+            <div className="prose prose-brand max-w-none text-gray-800 text-sm whitespace-pre-wrap font-mono">
+              {completion}
             </div>
           </div>
         )}

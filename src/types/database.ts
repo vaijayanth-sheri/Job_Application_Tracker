@@ -114,3 +114,71 @@ export interface AISettings {
 
 export type AISettingsFormData = Omit<AISettings, 'id' | 'user_id' | 'updated_at'>;
 
+// =============================================
+// Candidate Profile Database Types
+// =============================================
+
+export interface ProfileCore {
+  id: string;
+  user_id: string;
+  professional_summary: string;
+  career_interests: string;
+  cover_letter_guidelines: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProfileCoreFormData = Omit<ProfileCore, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+
+export interface ProfileExperience {
+  id: string;
+  user_id: string;
+  company: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProfileExperienceFormData = Omit<ProfileExperience, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+
+export interface ProfileProject {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  technologies_used: string;
+  business_relevance: string;
+  transferable_value: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProfileProjectFormData = Omit<ProfileProject, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+
+export interface ProfileEducation {
+  id: string;
+  user_id: string;
+  institution: string;
+  degree: string;
+  field_of_study: string;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProfileEducationFormData = Omit<ProfileEducation, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+
+export interface ProfileSkill {
+  id: string;
+  user_id: string;
+  skill_name: string;
+  category: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProfileSkillFormData = Omit<ProfileSkill, 'id' | 'user_id' | 'created_at' | 'updated_at'>;

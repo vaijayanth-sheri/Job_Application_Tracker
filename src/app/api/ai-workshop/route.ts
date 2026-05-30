@@ -1,66 +1,152 @@
 import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-
-// Create a custom Google provider to use the existing GEMINI_API_KEY
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY || '',
-});
-
-// Optional: Allow the route to run a bit longer for large outputs
-export const maxDuration = 60; 
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
-    const { base_cv, cover_letter_guidelines, formatting_rules, jobDescription } = await req.json();
+    const { jobDescription } = await req.json();
 
     if (!jobDescription) {
-      return new Response(JSON.stringify({ error: 'Missing job description' }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Missing jobDescription" }), { status: 400 });
     }
 
-    const systemPrompt = `You are an expert Career Coach and Executive Resume/Cover Letter Writer. Your mission is to analyze a target job description alongside a user's comprehensive base CV, and provide highly tailored CV improvement suggestions followed by a compelling, customized cover letter.
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll() {},
+        },
+      }
+    );
 
-<inputs>
-<base_cv>
-${base_cv || 'Not provided.'}
-</base_cv>
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
 
-<cover_letter_guidelines>
-${cover_letter_guidelines || 'Not provided.'}
-</cover_letter_guidelines>
+    // Fetch Candidate Database
+    const [
+      { data: core },
+      { data: experiences },
+      { data: projects },
+      { data: education },
+      { data: skills }
+    ] = await Promise.all([
+      supabase.from('profile_core').select('*').eq('user_id', user.id).single(),
+      supabase.from('profile_experiences').select('*').eq('user_id', user.id).order('start_date', { ascending: false }),
+      supabase.from('profile_projects').select('*').eq('user_id', user.id),
+      supabase.from('profile_education').select('*').eq('user_id', user.id),
+      supabase.from('skills').select('*').eq('user_id', user.id).eq('status', 'learned')
+    ]);
 
-<formatting_rules>
-${formatting_rules || 'Not provided.'}
-</formatting_rules>
-</inputs>
+    if (!core) {
+      return new Response(JSON.stringify({ error: "Core profile not found. Please setup Profile Database first." }), { status: 400 });
+    }
 
-<instructions>
-1. **Analyze:** Carefully review the job description provided by the user to identify core requirements, prioritized skills, and the company's culture/tone. Cross-reference this with the <base_cv> to find the strongest overlapping experiences and achievements.
-2. **Suggest:** Generate specific, actionable, and bulleted recommendations on how the user should tweak, reorder, or rephrase their CV to maximize impact for this specific role.
-3. **Draft:** Write a complete cover letter that strictly follows the <cover_letter_guidelines>. Ensure it highlights the best-matching experiences from the <base_cv> without repeating the CV verbatim.
-4. **Format:** Adhere strictly to the <formatting_rules> provided.
-</instructions>
+    // Construct the XML Database context
+    const candidateDatabaseXML = `
+<CANDIDATE_DATABASE>
+  <CORE_PROFILE>
+    <PROFESSIONAL_SUMMARY>${core.professional_summary}</PROFESSIONAL_SUMMARY>
+    <CAREER_INTERESTS>${core.career_interests}</CAREER_INTERESTS>
+    <COVER_LETTER_GUIDELINES>${core.cover_letter_guidelines}</COVER_LETTER_GUIDELINES>
+  </CORE_PROFILE>
 
-<output_format>
-You must output ONLY valid Markdown, optimized for UI streaming. Do not include any conversational filler, introductory pleasantries, or concluding remarks. Use exactly the following structure:
+  <SKILLS_DATABASE>
+    ${skills?.map((s: any) => `<SKILL category="${s.category || 'General'}">${s.skill_name}</SKILL>`).join('\n    ') || 'None provided'}
+  </SKILLS_DATABASE>
 
-### CV Suggestions
-- [Specific, actionable suggestion 1 (e.g., highlighting a specific project)]
-- [Specific, actionable suggestion 2 (e.g., rephrasing a bullet point to match JD keywords)]
-- [Specific, actionable suggestion 3...]
+  <EXPERIENCES_DATABASE>
+    ${experiences?.map((e: any) => `
+    <EXPERIENCE>
+      <TITLE>${e.title}</TITLE>
+      <COMPANY>${e.company}</COMPANY>
+      <DATES>${e.start_date} - ${e.end_date}</DATES>
+      <DESCRIPTION>${e.description}</DESCRIPTION>
+    </EXPERIENCE>`).join('') || 'None provided'}
+  </EXPERIENCES_DATABASE>
 
-### Cover Letter
-[Your complete, drafted cover letter goes here, structured exactly as per the guidelines.]
-</output_format>
+  <PROJECTS_DATABASE>
+    ${projects?.map((p: any) => `
+    <PROJECT>
+      <NAME>${p.name}</NAME>
+      <DESCRIPTION>${p.description}</DESCRIPTION>
+      <TECHNOLOGIES>${p.technologies_used}</TECHNOLOGIES>
+      <BUSINESS_RELEVANCE>${p.business_relevance}</BUSINESS_RELEVANCE>
+      <TRANSFERABLE_VALUE>${p.transferable_value}</TRANSFERABLE_VALUE>
+    </PROJECT>`).join('') || 'None provided'}
+  </PROJECTS_DATABASE>
 
-<edge_cases>
-- **Missing Experience:** If the <base_cv> lacks evidence for a critical requirement in the job description, do NOT invent or hallucinate experience. Instead, note the gap in the "CV Suggestions" section and advise the user on how to address it (e.g., through transferable skills).
-- **Missing Guidelines:** If the <cover_letter_guidelines> are empty or vague, default to a standard, professional 3-paragraph structure: an engaging introduction, a body paragraph focusing on 1-2 key achievements relevant to the JD, and a strong call-to-action conclusion.
-</edge_cases>`;
+  <EDUCATION_DATABASE>
+    ${education?.map((e: any) => `
+    <EDUCATION>
+      <INSTITUTION>${e.institution}</INSTITUTION>
+      <DEGREE>${e.degree}</DEGREE>
+      <FIELD>${e.field_of_study}</FIELD>
+    </EDUCATION>`).join('') || 'None provided'}
+  </EDUCATION_DATABASE>
+</CANDIDATE_DATABASE>
+`;
 
-    // Use a highly capable model for this complex task 
-    // Rolled back to gemini-2.5-flash to stay safely within the generous free tier limits
+    const systemPrompt = `
+You are an expert technical recruiter, CV optimizer, and application writer.
+Your primary objective is to act as an EVIDENCE RETRIEVAL SYSTEM.
+You will be provided with a <CANDIDATE_DATABASE> and a target JOB DESCRIPTION.
+
+CORE PRINCIPLE:
+Every statement you produce must be traceable to the stored candidate information.
+If evidence does not exist, omit the information.
+Do NOT invent responsibilities, metrics, or achievements.
+Prioritize relevance over keyword matching.
+
+OUTPUT FORMAT:
+You must output EXACTLY these 5 sections in order. Use Markdown headers for the sections.
+
+### SECTION 1: PROFILE SUMMARY
+A tailored professional summary aligned to the target role.
+Length: 4-6 lines maximum.
+
+### SECTION 2: RELEVANT SKILLS
+Only skills relevant to the role selected from the SKILLS_DATABASE.
+Length: 10-20 skills as a bulleted list.
+Prioritize direct matches, adjacent matches, and transferable skills.
+
+### SECTION 3: EXPERIENCE SECTION
+For each relevant stored experience, provide:
+- **Title at Company**
+- Exactly 3 tailored bullet points.
+These bullets must be selected or adapted from the existing description evidence.
+Do not create responsibilities that did not occur.
+
+### SECTION 4: SELECTED PROJECTS
+Select the 3 most relevant projects from the PROJECTS_DATABASE based on the job description.
+For each project:
+- **Project Title**
+- Exactly 3 tailored bullet points.
+
+### SECTION 5: COVER LETTER CONTENT
+Follow the tone specified in the COVER_LETTER_GUIDELINES.
+Structure:
+- Introduction paragraph.
+- Why I am a fit (5-6 concise bullet points, each 1-2 sentences maximum, evidence-based).
+- Professional and concise closing paragraph.
+
+CANDIDATE DATABASE:
+${candidateDatabaseXML}
+`;
+
+    const google = createGoogleGenerativeAI({
+      apiKey: process.env.GEMINI_API_KEY || '',
+    });
+
     const result = await streamText({
-      model: google('gemini-2.5-flash'), 
+      model: google('gemini-2.5-flash'),
       system: systemPrompt,
       prompt: `JOB DESCRIPTION:\n\n${jobDescription}`,
     });
