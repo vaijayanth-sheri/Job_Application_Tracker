@@ -148,7 +148,7 @@ export default function JobsPage() {
 
   const openSmartAdd = () => {
     setEditingJob(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, applied_date: '' });
     setSmartMode(true);
     setJobDescription('');
     setModalOpen(true);
@@ -285,9 +285,10 @@ export default function JobsPage() {
         title: data.title || prev.title,
         company: data.company || prev.company,
         location: data.location || prev.location,
-        relevancy: data.relevancy || prev.relevancy,
-        interest_level: data.interest_level || prev.interest_level,
+        relevancy: typeof data.relevancy === 'number' ? data.relevancy : prev.relevancy,
+        interest_level: typeof data.interest_level === 'number' ? data.interest_level : prev.interest_level,
         notes: data.notes || prev.notes,
+        // applied_date, status, and other fields are intentionally left untouched
       }));
       setSmartMode(false);
       addToast('Job details extracted successfully');

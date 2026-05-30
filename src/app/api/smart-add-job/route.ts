@@ -20,15 +20,13 @@ export async function POST(req: Request) {
       .from('user_profiles')
       .select('resume_text')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    let resumeText = '';
-    if (profileData && profileData.resume_text) {
-      resumeText = profileData.resume_text;
-    } else {
-      // It's okay if they don't have a profile yet, but the match score won't be accurate.
-      console.warn("No user profile found, match score will be generic.");
+    if (profileError) {
+      console.error("Profile fetch error:", profileError);
     }
+
+    const resumeText = profileData?.resume_text || '';
 
     // 2. Call Gemini API
     const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -36,26 +34,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Gemini API key is not configured' }, { status: 500 });
     }
 
+    const profileSection = resumeText 
+      ? `USER PROFILE / RESUME:\n${resumeText}` 
+      : 'USER PROFILE / RESUME: Not provided. Score relevancy as 50 and note that no profile was available for matching.';
+
     const prompt = `
-      You are an expert technical recruiter and career coach.
-      I have a job description and a user's resume/profile. 
-      I need you to extract key information from the job description and evaluate how well the user matches this job.
+You are an expert technical recruiter and career coach.
+I have a job description and a user's resume/profile.
+Extract key information from the job description and evaluate how well the user matches this job.
 
-      USER PROFILE:
-      ${resumeText}
+${profileSection}
 
-      JOB DESCRIPTION:
-      ${jobDescription}
+JOB DESCRIPTION:
+${jobDescription}
 
-      Please return a strict JSON object with exactly these fields (no markdown formatting, just the raw JSON string):
-      {
-        "title": "Extracted Job Title",
-        "company": "Extracted Company Name (leave blank if not found)",
-        "location": "Extracted Location (leave blank if not found)",
-        "relevancy": 85, // This is the match_score: an integer from 0 to 100 based on how well the user's skills match the job. 100 is a perfect match.
-        "interest_level": 3, // Guess how interesting this job is based on the match (1-5).
-        "match_reasoning": "A 1-2 sentence explanation of why this is or isn't a good fit."
-      }
+Return ONLY a valid JSON object with exactly these fields (no markdown, no explanation, just raw JSON):
+{
+  "title": "Extracted Job Title",
+  "company": "Extracted Company Name (empty string if not found)",
+  "location": "Extracted Location (empty string if not found)",
+  "relevancy": 85,
+  "interest_level": 3,
+  "match_reasoning": "A 1-2 sentence explanation of why this is or isn't a good fit."
+}
+
+Rules:
+- "relevancy" is an integer from 0 to 100 based on how well the user's skills match the job requirements. 100 is a perfect match.
+- "interest_level" is an integer from 1 to 5 estimating how interesting this role would be for the user.
+- Extract the job title, company name and location directly from the job description.
     `;
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
