@@ -5,14 +5,14 @@ Integrate an AI assistant into the Job Application Tracker that takes a Job Desc
 
 ## Architecture
 - **Backend:** Next.js App Router API Route utilizing the Vercel AI SDK.
-- **Model:** Google Gemini (e.g., 1.5 Pro) via API key stored in `.env.local`.
+- **Model:** Google Gemini (e.g., Gemini 3.5 Flash or Gemini 3.1 Pro) via API key stored in `.env.local`.
 - **Data Flow:** The frontend sends the JD and the user's saved guidelines to the backend. The backend constructs a prompt and streams the response back to the client.
 
 ## Database Schema (Supabase)
 New table `ai_settings` (1 row per user):
 - `id` (uuid, primary key, default gen_random_uuid())
 - `user_id` (uuid, foreign key to auth.users)
-- `base_cv` (text)
+- `base_cv` (text) - A comprehensive info document containing all projects, experience, skills, and capabilities. The AI will extract only the relevant parts for each specific job.
 - `cover_letter_guidelines` (text)
 - `formatting_rules` (text)
 - `updated_at` (timestamp with time zone)
@@ -23,7 +23,7 @@ New table `ai_settings` (1 row per user):
 
 ### 1. AI Settings Page (`/ai-settings`)
 - Simple form with three large `textarea` inputs:
-  - Base CV
+  - Profile Info / Base CV (Replacing the current profile block with this large info document)
   - Cover Letter Guidelines (tone, structure)
   - Formatting Rules
 - "Save" button to update the `ai_settings` table.
