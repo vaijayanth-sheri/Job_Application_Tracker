@@ -102,3 +102,15 @@ export type CompanyFormData = {
   linkedin_connections: string;
   notes: string;
 };
+
+export interface AISettings {
+  id: string;
+  user_id: string;
+  base_cv: string;
+  cover_letter_guidelines: string;
+  formatting_rules: string;
+  updated_at: string;
+}
+
+export type AISettingsFormData = Omit<AISettings, 'id' | 'user_id' | 'updated_at'>;
+
