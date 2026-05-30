@@ -192,30 +192,33 @@ export default function JobsPage() {
           await supabase
             .from('companies')
             .insert({ company_name: form.company, user_id: user.id });
-        } else {
-          // If we found a fuzzy match, we could optionally standardize the name to the matched one:
-          // form.company = existingCompanies[0].company_name;
         }
       }
+
+      // Convert empty strings to null for date/optional fields
+      const payload = {
+        ...form,
+        applied_date: form.applied_date || null,
+      };
 
       if (editingJob) {
         const { error } = await supabase
           .from('jobs')
-          .update(form)
+          .update(payload)
           .eq('id', editingJob.id);
         if (error) throw error;
         addToast('Job updated successfully');
       } else {
         const { error } = await supabase
           .from('jobs')
-          .insert({ ...form, user_id: user.id });
+          .insert({ ...payload, user_id: user.id });
         if (error) throw error;
         addToast('Job added successfully');
       }
       setModalOpen(false);
       fetchJobs();
-    } catch {
-      addToast('Failed to save job', 'error');
+    } catch (err: any) {
+      addToast(err.message || 'Failed to save job', 'error');
     } finally {
       setSaving(false);
     }
