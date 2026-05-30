@@ -3,7 +3,7 @@
 // =============================================
 
 export type JobStatus = 'wishlist' | 'applied' | 'interview' | 'offer' | 'rejected';
-export type Relevancy = 'low' | 'medium' | 'high';
+export type Relevancy = number;
 export type SkillPriority = 'low' | 'medium' | 'high';
 export type SkillStatus = 'to_learn' | 'in_progress' | 'learned';
 

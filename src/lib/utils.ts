@@ -31,12 +31,12 @@ export const STATUS_COLORS: Record<JobStatus, { bg: string; text: string; dot: s
   rejected: { bg: 'bg-rose-100', text: 'text-rose-700', dot: 'bg-rose-500' },
 };
 
-/** Relevancy color mapping */
-export const RELEVANCY_COLORS: Record<Relevancy, { bg: string; text: string }> = {
-  low: { bg: 'bg-gray-100', text: 'text-gray-600' },
-  medium: { bg: 'bg-sky-100', text: 'text-sky-700' },
-  high: { bg: 'bg-violet-100', text: 'text-violet-700' },
-};
+/** Relevancy color mapping based on score 0-100 */
+export function getRelevancyColor(score: number): { bg: string; text: string } {
+  if (score >= 80) return { bg: 'bg-violet-100', text: 'text-violet-700' };
+  if (score >= 50) return { bg: 'bg-sky-100', text: 'text-sky-700' };
+  return { bg: 'bg-gray-100', text: 'text-gray-600' };
+}
 
 /** Skill priority colors */
 export const PRIORITY_COLORS: Record<SkillPriority, { bg: string; text: string }> = {

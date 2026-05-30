@@ -112,9 +112,9 @@ export default function CompaniesPage() {
       const q = search.toLowerCase();
       result = result.filter(
         (c) =>
-          c.company_name.toLowerCase().includes(q) ||
-          c.sector.toLowerCase().includes(q) ||
-          c.location.toLowerCase().includes(q)
+          (c.company_name || '').toLowerCase().includes(q) ||
+          (c.sector || '').toLowerCase().includes(q) ||
+          (c.location || '').toLowerCase().includes(q)
       );
     }
     if (filterSector !== 'all') {

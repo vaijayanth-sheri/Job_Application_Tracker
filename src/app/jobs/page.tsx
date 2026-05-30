@@ -7,7 +7,7 @@ import {
   formatDate,
   toInputDate,
   STATUS_COLORS,
-  RELEVANCY_COLORS,
+  getRelevancyColor,
   statusLabel,
   cn,
 } from '@/lib/utils';
@@ -28,11 +28,7 @@ const STATUS_OPTIONS = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
-const RELEVANCY_OPTIONS = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-];
+// Removed RELEVANCY_OPTIONS since relevancy is now an integer score
 
 const INTEREST_OPTIONS = [
   { value: '1', label: '1 — Low' },
@@ -48,7 +44,7 @@ const EMPTY_FORM: JobFormData = {
   applied_date: new Date().toISOString().split('T')[0],
   location: '',
   status: 'wishlist',
-  relevancy: 'medium',
+  relevancy: 50,
   interest_level: 3,
   interview_stage: '',
   job_link: '',
@@ -76,6 +72,11 @@ export default function JobsPage() {
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<Job | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Smart Add state
+  const [smartMode, setSmartMode] = useState(false);
+  const [jobDescription, setJobDescription] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
 
   const supabase = createClient();
   const { addToast } = useToast();
@@ -144,6 +145,8 @@ export default function JobsPage() {
   const openCreate = () => {
     setEditingJob(null);
     setForm(EMPTY_FORM);
+    setSmartMode(false);
+    setJobDescription('');
     setModalOpen(true);
   };
 
@@ -169,6 +172,28 @@ export default function JobsPage() {
     setSaving(true);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Fuzzy check for company existence
+      if (form.company) {
+        const { data: existingCompanies } = await supabase
+          .from('companies')
+          .select('id, company_name')
+          .ilike('company_name', `%${form.company}%`)
+          .eq('user_id', user.id);
+
+        if (!existingCompanies || existingCompanies.length === 0) {
+          // Auto-add new company
+          await supabase
+            .from('companies')
+            .insert({ company_name: form.company, user_id: user.id });
+        } else {
+          // If we found a fuzzy match, we could optionally standardize the name to the matched one:
+          // form.company = existingCompanies[0].company_name;
+        }
+      }
+
       if (editingJob) {
         const { error } = await supabase
           .from('jobs')
@@ -177,10 +202,9 @@ export default function JobsPage() {
         if (error) throw error;
         addToast('Job updated successfully');
       } else {
-        const { data: { user } } = await supabase.auth.getUser();
         const { error } = await supabase
           .from('jobs')
-          .insert({ ...form, user_id: user!.id });
+          .insert({ ...form, user_id: user.id });
         if (error) throw error;
         addToast('Job added successfully');
       }
@@ -222,6 +246,41 @@ export default function JobsPage() {
       setJobs((prev) =>
         prev.map((j) => (j.id === job.id ? { ...j, status: newStatus } : j))
       );
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!jobDescription.trim()) {
+      addToast('Please enter a job description', 'error');
+      return;
+    }
+    setAnalyzing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const res = await fetch('/api/smart-add-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobDescription, userId: user?.id })
+      });
+      
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      
+      setForm(prev => ({
+        ...prev,
+        title: data.title || prev.title,
+        company: data.company || prev.company,
+        location: data.location || prev.location,
+        relevancy: data.relevancy || prev.relevancy,
+        interest_level: data.interest_level || prev.interest_level,
+        notes: data.notes || prev.notes,
+      }));
+      setSmartMode(false);
+      addToast('Job details extracted successfully');
+    } catch (err: any) {
+      addToast('Analysis failed', 'error');
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -300,14 +359,7 @@ export default function JobsPage() {
               onChange={(e) => setFilterStatus(e.target.value)}
             />
           </div>
-          <div className="w-40">
-            <Select
-              label="Relevancy"
-              options={[{ value: 'all', label: 'All' }, ...RELEVANCY_OPTIONS]}
-              value={filterRelevancy}
-              onChange={(e) => setFilterRelevancy(e.target.value)}
-            />
-          </div>
+          {/* Relevancy filter removed for brevity as it is now a score */}
         </div>
       </div>
 
@@ -354,7 +406,7 @@ export default function JobsPage() {
               <tbody>
                 {filtered.map((job) => {
                   const statusClr = STATUS_COLORS[job.status];
-                  const relClr = RELEVANCY_COLORS[job.relevancy];
+                  const relClr = getRelevancyColor(job.relevancy);
                   return (
                     <tr key={job.id}>
                       <td>
@@ -389,7 +441,7 @@ export default function JobsPage() {
                       <td className="text-gray-500">{job.location || '—'}</td>
                       <td>
                         <Badge bg={relClr.bg} text={relClr.text}>
-                          {statusLabel(job.relevancy)}
+                          {job.relevancy}% Match
                         </Badge>
                       </td>
                       <td>{renderStars(job.interest_level)}</td>
@@ -442,14 +494,47 @@ export default function JobsPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingJob ? 'Edit Job' : 'Add New Job'}
+        title={
+          <div className="flex items-center justify-between pr-8">
+            <span>{editingJob ? 'Edit Job' : 'Add New Job'}</span>
+            {!editingJob && (
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => setSmartMode(!smartMode)}
+                className="bg-brand-50 text-brand-700 hover:bg-brand-100 border-0"
+              >
+                ✨ {smartMode ? 'Manual Entry' : 'Smart Add'}
+              </Button>
+            )}
+          </div>
+        }
         size="lg"
       >
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Job Title *"
-              value={form.title}
+        {smartMode ? (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-gray-700">Paste Job Description</label>
+              <textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                rows={10}
+                placeholder="Paste the full job description here..."
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" onClick={handleAnalyze} loading={analyzing}>
+                ✨ Analyze with AI
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Job Title *"
+                value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               required
               placeholder="Software Engineer"
@@ -480,11 +565,13 @@ export default function JobsPage() {
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as JobStatus })}
             />
-            <Select
-              label="Relevancy"
-              options={RELEVANCY_OPTIONS}
-              value={form.relevancy}
-              onChange={(e) => setForm({ ...form, relevancy: e.target.value as 'low' | 'medium' | 'high' })}
+            <Input
+              label="Relevancy (0-100)"
+              type="number"
+              min="0"
+              max="100"
+              value={String(form.relevancy)}
+              onChange={(e) => setForm({ ...form, relevancy: parseInt(e.target.value) || 0 })}
             />
             <Select
               label="Interest Level"
@@ -526,6 +613,7 @@ export default function JobsPage() {
             </Button>
           </div>
         </form>
+        )}
       </Modal>
 
       {/* Delete Confirm */}
