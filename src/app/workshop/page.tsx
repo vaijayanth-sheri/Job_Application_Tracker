@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useCompletion } from '@ai-sdk/react';
+
 import { createClient } from '@/lib/supabase';
 import { Job, AISettings } from '@/types/database';
 import LayoutShell from '@/components/LayoutShell';
@@ -14,9 +14,9 @@ export default function AIWorkshopPage() {
   const [jobDescription, setJobDescription] = useState('');
   const [settings, setSettings] = useState<AISettings | null>(null);
   
-  const { completion, complete, isLoading, error } = useCompletion({
-    api: '/api/ai-workshop',
-  });
+  const [completion, setCompletion] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -61,17 +61,53 @@ export default function AIWorkshopPage() {
       return;
     }
 
+    setIsLoading(true);
+    setCompletion('');
+    setError(null);
+
     try {
-      await complete(jobDescription, {
-        body: {
+      const res = await fetch('/api/ai-workshop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           base_cv: settings.base_cv,
           cover_letter_guidelines: settings.cover_letter_guidelines,
           formatting_rules: settings.formatting_rules,
           jobDescription: jobDescription,
-        }
+        })
       });
+
+      if (!res.ok) {
+        let errorMessage = `Error ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (errData.error) errorMessage = errData.error;
+        } catch (e) {
+          errorMessage = await res.text() || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body.");
+
+      const decoder = new TextDecoder();
+      let done = false;
+      let text = '';
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          text += decoder.decode(value, { stream: true });
+          setCompletion(text);
+        }
+      }
     } catch (err: any) {
+      setError(err);
       addToast(err.message || "Failed to generate.", 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
