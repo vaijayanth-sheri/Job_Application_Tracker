@@ -65,7 +65,7 @@ You must output ONLY valid Markdown, optimized for UI streaming. Do not include 
       prompt: `JOB DESCRIPTION:\n\n${jobDescription}`,
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (error: any) {
     console.error("AI Workshop API Error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
