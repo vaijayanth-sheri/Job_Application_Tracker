@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     if (!geminiRes.ok) {
       const errorText = await geminiRes.text();
       console.error("Gemini API Error:", errorText);
-      return NextResponse.json({ error: 'Failed to analyze job description with AI.' }, { status: 500 });
+      return NextResponse.json({ error: `Gemini API Error: ${errorText}` }, { status: 500 });
     }
 
     const geminiData = await geminiRes.json();
