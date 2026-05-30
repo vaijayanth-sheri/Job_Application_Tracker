@@ -267,7 +267,17 @@ export default function JobsPage() {
         body: JSON.stringify({ jobDescription, userId: user?.id })
       });
       
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        let errMsg = 'Analysis failed';
+        try {
+          const errData = await res.json();
+          errMsg = errData.error || errMsg;
+        } catch (e) {
+          errMsg = await res.text() || errMsg;
+        }
+        throw new Error(errMsg);
+      }
+      
       const data = await res.json();
       
       setForm(prev => ({
@@ -282,7 +292,7 @@ export default function JobsPage() {
       setSmartMode(false);
       addToast('Job details extracted successfully');
     } catch (err: any) {
-      addToast('Analysis failed', 'error');
+      addToast(err.message || 'Analysis failed', 'error');
     } finally {
       setAnalyzing(false);
     }

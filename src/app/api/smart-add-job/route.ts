@@ -81,6 +81,9 @@ export async function POST(req: Request) {
     const geminiData = await geminiRes.json();
     let rawText = geminiData.candidates[0].content.parts[0].text;
     
+    // Strip markdown formatting if the model included it
+    rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+
     // Parse the JSON safely
     let parsedResult;
     try {
