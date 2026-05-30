@@ -146,6 +146,14 @@ export default function JobsPage() {
     setModalOpen(true);
   };
 
+  const openSmartAdd = () => {
+    setEditingJob(null);
+    setForm(EMPTY_FORM);
+    setSmartMode(true);
+    setJobDescription('');
+    setModalOpen(true);
+  };
+
   const openEdit = (job: Job) => {
     setEditingJob(job);
     setForm({
@@ -321,12 +329,17 @@ export default function JobsPage() {
             {filtered.length} of {jobs.length} jobs
           </p>
         </div>
-        <Button onClick={openCreate} size="md">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Add Job
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button onClick={openSmartAdd} size="md" variant="secondary" className="bg-brand-50 text-brand-700 hover:bg-brand-100 border-0">
+            ✨ Smart Add
+          </Button>
+          <Button onClick={openCreate} size="md">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Add Job
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -492,17 +505,7 @@ export default function JobsPage() {
         onClose={() => setModalOpen(false)}
         title={
           <div className="flex items-center justify-between pr-8">
-            <span>{editingJob ? 'Edit Job' : 'Add New Job'}</span>
-            {!editingJob && (
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={() => setSmartMode(!smartMode)}
-                className="bg-brand-50 text-brand-700 hover:bg-brand-100 border-0"
-              >
-                ✨ {smartMode ? 'Manual Entry' : 'Smart Add'}
-              </Button>
-            )}
+            <span>{smartMode ? 'Smart Add Job' : (editingJob ? 'Edit Job' : 'Add New Job')}</span>
           </div>
         }
         size="lg"
