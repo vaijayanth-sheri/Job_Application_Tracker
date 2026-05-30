@@ -1,34 +1,14 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client with Service Role or regular client if auth token provided
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function POST(req: Request) {
   try {
-    const { jobDescription, userId } = await req.json();
+    const { jobDescription, userId, resumeText = '' } = await req.json();
 
     if (!jobDescription || !userId) {
       return NextResponse.json({ error: 'Missing jobDescription or userId' }, { status: 400 });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // 1. Fetch user's profile
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('resume_text')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error("Profile fetch error:", profileError);
-    }
-
-    const resumeText = profileData?.resume_text || '';
-
-    // 2. Call Gemini API
+    // Call Gemini API
     const geminiApiKey = process.env.GEMINI_API_KEY;
     if (!geminiApiKey) {
       return NextResponse.json({ error: 'Gemini API key is not configured' }, { status: 500 });

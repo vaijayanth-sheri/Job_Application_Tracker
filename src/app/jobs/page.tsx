@@ -261,10 +261,22 @@ export default function JobsPage() {
     setAnalyzing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Fetch profile from the frontend (has auth session, bypasses RLS)
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('resume_text')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
       const res = await fetch('/api/smart-add-job', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobDescription, userId: user?.id })
+        body: JSON.stringify({ 
+          jobDescription, 
+          userId: user?.id,
+          resumeText: profileData?.resume_text || ''
+        })
       });
       
       if (!res.ok) {
