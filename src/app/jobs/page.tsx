@@ -60,7 +60,6 @@ export default function JobsPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterRelevancy, setFilterRelevancy] = useState('all');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -113,9 +112,6 @@ export default function JobsPage() {
     if (filterStatus !== 'all') {
       result = result.filter((j) => j.status === filterStatus);
     }
-    if (filterRelevancy !== 'all') {
-      result = result.filter((j) => j.relevancy === filterRelevancy);
-    }
     // Sort
     result = [...result].sort((a, b) => {
       const aVal = a[sortField];
@@ -126,7 +122,7 @@ export default function JobsPage() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return result;
-  }, [jobs, search, filterStatus, filterRelevancy, sortField, sortDir]);
+  }, [jobs, search, filterStatus, sortField, sortDir]);
 
   // Distinct values for smart suggestions
   const uniqueCompanies = useMemo(() => Array.from(new Set(jobs.map((j) => j.company).filter(Boolean))), [jobs]);
