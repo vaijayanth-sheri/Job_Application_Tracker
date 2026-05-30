@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       }
     `;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${geminiApiKey}`;
     
     const geminiRes = await fetch(geminiUrl, {
       method: 'POST',
