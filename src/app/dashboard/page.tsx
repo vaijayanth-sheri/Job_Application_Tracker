@@ -6,6 +6,7 @@ import { type Job, type JobStatus } from '@/types/database';
 import { formatDate, STATUS_COLORS, STAT_GRADIENTS, statusLabel, cn } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Select from '@/components/ui/Select';
+import QuickNotesPanel from '@/components/QuickNotesPanel';
 
 const statusOptions: { value: string; label: string }[] = [
   { value: 'all', label: 'All Statuses' },
@@ -216,6 +217,9 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Floating Quick Notes */}
+      <QuickNotesPanel />
     </div>
   );
 }

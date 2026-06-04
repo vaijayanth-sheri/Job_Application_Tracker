@@ -511,134 +511,111 @@ export default function CompaniesPage() {
                 : 'Try adjusting your filters or search term.'}
             </p>
           </div>
+        ) : activeTab === 'myList' ? (
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('company_name')}>Company <SortIcon field="company_name" /></th>
+                  <th onClick={() => handleSort('sector')}>Sector <SortIcon field="sector" /></th>
+                  <th onClick={() => handleSort('location')}>Location <SortIcon field="location" /></th>
+                  <th onClick={() => handleSort('interest_level')}>Interest <SortIcon field="interest_level" /></th>
+                  <th onClick={() => handleSort('last_reviewed')}>Last Reviewed <SortIcon field="last_reviewed" /></th>
+                  <th>LinkedIn</th>
+                  <th>Website</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((company: any) => (
+                  <tr key={company.user_company_id} className={company.interest_level && company.interest_level >= 4 ? 'bg-emerald-50/40' : ''}>
+                    <td>
+                      <span className="font-medium text-gray-900">{company.company_name}</span>
+                      {company.notes && (
+                        <span className="block text-xs text-gray-400 mt-0.5 truncate max-w-[200px]">
+                          {company.notes}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {company.sector ? <Badge bg="bg-violet-100" text="text-violet-700">{company.sector}</Badge> : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="text-gray-600">{company.location || '—'}</td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        {renderStars(company.interest_level)}
+                        <Badge bg={interestBadge(company.interest_level).bg} text={interestBadge(company.interest_level).text}>
+                          {interestBadge(company.interest_level).label}
+                        </Badge>
+                      </div>
+                    </td>
+                    <td className="text-gray-500 text-xs whitespace-nowrap">{formatDate(company.last_reviewed)}</td>
+                    <td className="text-gray-600 text-sm">{company.linkedin_connections || '—'}</td>
+                    <td>
+                      {company.website_link ? (
+                        <a href={company.website_link} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
+                      ) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => openEditMyCompany(company)} className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="Edit">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                          </svg>
+                        </button>
+                        <button onClick={() => setDeleteTarget(company)} className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Remove from List">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th onClick={() => handleSort('company_name')}>
-                    Company <SortIcon field="company_name" />
-                  </th>
-                  <th onClick={() => handleSort('sector')}>
-                    Sector <SortIcon field="sector" />
-                  </th>
-                  <th onClick={() => handleSort('location')}>
-                    Location <SortIcon field="location" />
-                  </th>
-                  
-                  {activeTab === 'myList' && (
-                    <>
-                      <th onClick={() => handleSort('interest_level')}>
-                        Interest <SortIcon field="interest_level" />
-                      </th>
-                      <th onClick={() => handleSort('last_reviewed')}>
-                        Last Reviewed <SortIcon field="last_reviewed" />
-                      </th>
-                      <th>LinkedIn</th>
-                    </>
-                  )}
-                  
+                  <th onClick={() => handleSort('company_name')}>Company <SortIcon field="company_name" /></th>
+                  <th onClick={() => handleSort('sector')}>Sector <SortIcon field="sector" /></th>
+                  <th onClick={() => handleSort('location')}>Location <SortIcon field="location" /></th>
                   <th>Website</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((company: any) => {
-                  
+                  const isInMyList = myCompanies.some(mc => mc.id === company.id);
                   return (
-                    <tr key={company.id} className={company.interest_level && company.interest_level >= 4 ? 'bg-emerald-50/40' : ''}>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{company.company_name}</span>
-                          {activeTab === 'myList' && company.is_global && (
-                            <span className="bg-blue-100 text-blue-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded" title="Available in the Global Database">
-                              Global
-                            </span>
-                          )}
-                        </div>
-                        {activeTab === 'myList' && company.notes && (
-                          <span className="block text-xs text-gray-400 mt-0.5 truncate max-w-[200px]">
-                            {company.notes}
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        {company.sector ? (
-                          <Badge bg="bg-violet-100" text="text-violet-700">
-                            {company.sector}
-                          </Badge>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
+                    <tr key={company.id}>
+                      <td><span className="font-medium text-gray-900">{company.company_name}</span></td>
+                      <td>{company.sector ? <Badge bg="bg-violet-100" text="text-violet-700">{company.sector}</Badge> : <span className="text-gray-300">—</span>}</td>
                       <td className="text-gray-600">{company.location || '—'}</td>
-                      
-                      {activeTab === 'myList' && (
-                        <>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              {renderStars(company.interest_level)}
-                              <Badge bg={interestBadge(company.interest_level).bg} text={interestBadge(company.interest_level).text}>
-                                {interestBadge(company.interest_level).label}
-                              </Badge>
-                            </div>
-                          </td>
-                          <td className="text-gray-500 text-xs whitespace-nowrap">
-                            {formatDate(company.last_reviewed)}
-                          </td>
-                          <td className="text-gray-600 text-sm">
-                            {company.linkedin_connections || '—'}
-                          </td>
-                        </>
-                      )}
-                      
                       <td>
                         {company.website_link ? (
-                          <a
-                            href={company.website_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-brand-600 hover:text-brand-700 text-xs font-medium"
-                          >
-                            Open ↗
-                          </a>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
+                          <a href={company.website_link} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
+                        ) : <span className="text-gray-300">—</span>}
                       </td>
                       <td>
                         <div className="flex items-center justify-end gap-2">
-                          {activeTab === 'global' && (
-                            <button
-                              onClick={() => addToMyList(company)}
-                              className="px-2 py-1 text-xs font-medium rounded-lg text-brand-600 bg-brand-50 hover:bg-brand-100 transition-colors"
-                              title="Add to My List"
-                            >
+                          {isInMyList ? (
+                            <span className="px-2 py-1 text-xs font-medium text-emerald-600 bg-emerald-50 rounded-lg whitespace-nowrap">
+                              Available on my list
+                            </span>
+                          ) : (
+                            <button onClick={() => addToMyList(company)} className="px-2 py-1 text-xs font-medium rounded-lg text-brand-600 bg-brand-50 hover:bg-brand-100 transition-colors whitespace-nowrap" title="Add to My List">
                               Add to My List
                             </button>
                           )}
-                          
-                          <button
-                            onClick={() => activeTab === 'myList' ? openEditMyCompany(company) : openEditGlobalCompany(company)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                            title="Edit"
-                          >
+                          <button onClick={() => openEditGlobalCompany(company)} className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="Edit">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                             </svg>
                           </button>
-                          
-                          {activeTab === 'myList' && (
-                            <button
-                              onClick={() => setDeleteTarget(company)}
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                              title="Remove from List"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                              </svg>
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>

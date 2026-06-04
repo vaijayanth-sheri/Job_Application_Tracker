@@ -67,6 +67,14 @@ export interface Company {
   updated_at: string;
 }
 
+export interface QuickNote {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserCompany {
   id: string;
   user_id: string;
@@ -84,6 +92,7 @@ export type CompanyDisplay = Company & Omit<UserCompany, 'id' | 'created_at' | '
 // Form types
 export type JobFormData = Omit<Job, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
 export type SkillFormData = Omit<Skill, 'id' | 'user_id' | 'created_at'>;
+export type QuickNoteFormData = Omit<QuickNote, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
 
 export type JobBoardFormData = {
   site: string;
