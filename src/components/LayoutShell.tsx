@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { ToastProvider } from '@/components/ui/Toast';
+import QuickNotesPanel from '@/components/QuickNotesPanel';
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -20,6 +21,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
               {children}
             </div>
           </main>
+          <QuickNotesPanel />
         </div>
       )}
     </ToastProvider>
