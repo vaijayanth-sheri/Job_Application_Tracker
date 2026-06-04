@@ -281,19 +281,18 @@ export default function JobsPage() {
       if (existingCompany) {
         globalCompanyId = existingCompany.id;
       } else {
-        const { data: newCompany, error } = await supabase
+        globalCompanyId = crypto.randomUUID();
+        const { error } = await supabase
           .from('companies')
           .insert({
+            id: globalCompanyId,
             company_name: pendingCompanyName,
             sector: companyForm.sector,
             website_link: companyForm.website_link,
             location: companyForm.location,
             is_global: false,
-          })
-          .select('id')
-          .single();
+          });
         if (error) throw error;
-        globalCompanyId = newCompany.id;
       }
 
       const { error: ucError } = await supabase
@@ -714,7 +713,7 @@ export default function JobsPage() {
           </div>
           <Input
             label="Job Link"
-            type="url"
+            type="text"
             value={form.job_link}
             onChange={(e) => setForm({ ...form, job_link: e.target.value })}
             placeholder="https://..."
@@ -761,7 +760,7 @@ export default function JobsPage() {
             />
             <Input
               label="Website Link"
-              type="url"
+              type="text"
               value={companyForm.website_link}
               onChange={(e) => setCompanyForm({ ...companyForm, website_link: e.target.value })}
               placeholder="https://..."

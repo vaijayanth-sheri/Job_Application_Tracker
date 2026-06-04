@@ -69,7 +69,13 @@ export default function CompaniesPage() {
   const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleClick = () => setExpandedCompanyId(null);
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.jobs-expand-btn') || target.closest('.jobs-expanded-content')) {
+        return;
+      }
+      setExpandedCompanyId(null);
+    };
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, []);
@@ -586,10 +592,11 @@ export default function CompaniesPage() {
                         <td>
                           <button 
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               setExpandedCompanyId(isExpanded ? null : company.id);
                             }}
-                            className={cn("px-2 py-1 text-xs font-medium rounded-lg transition-colors", companyJobs.length > 0 ? "text-brand-700 bg-brand-50 hover:bg-brand-100" : "text-gray-500 bg-gray-50")}
+                            className={cn("jobs-expand-btn px-2 py-1 text-xs font-medium rounded-lg transition-colors", companyJobs.length > 0 ? "text-brand-700 bg-brand-50 hover:bg-brand-100" : "text-gray-500 bg-gray-50")}
                           >
                             {companyJobs.length} {companyJobs.length === 1 ? 'job' : 'jobs'}
                           </button>
@@ -610,7 +617,7 @@ export default function CompaniesPage() {
                         </td>
                       </tr>
                       {isExpanded && companyJobs.length > 0 && (
-                        <tr>
+                        <tr className="jobs-expanded-content">
                           <td colSpan={9} className="p-0 border-b-0">
                             <div className="bg-gray-50/80 px-6 py-4 border-b border-gray-100 shadow-inner">
                               <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Applied Jobs</h4>
@@ -736,8 +743,8 @@ export default function CompaniesPage() {
             />
             
             <Input
-              label="Website"
-              type="url"
+              label="Website Link"
+              type="text"
               value={form.website_link}
               onChange={(e) => setForm({ ...form, website_link: e.target.value })}
               placeholder="https://..."
