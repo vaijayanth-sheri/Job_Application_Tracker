@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { type CompanyDisplay, type CompanyFormData } from '@/types/database';
+import { type CompanyDisplay, type CompanyFormData, type Company } from '@/types/database';
 import { formatDate, toInputDate, cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -30,25 +30,34 @@ const EMPTY_FORM: CompanyFormData = {
   last_reviewed: new Date().toISOString().split('T')[0],
   linkedin_connections: '',
   notes: '',
+  is_global: true,
 };
 
 type SortField = 'company_name' | 'interest_level' | 'last_reviewed' | 'sector' | 'location' | 'created_at';
 type SortDir = 'asc' | 'desc';
+type TabState = 'global' | 'myList';
 
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<CompanyDisplay[]>([]);
+  const [activeTab, setActiveTab] = useState<TabState>('myList');
+  
+  const [myCompanies, setMyCompanies] = useState<CompanyDisplay[]>([]);
+  const [globalCompanies, setGlobalCompanies] = useState<Company[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
   const [search, setSearch] = useState('');
   const [filterSector, setFilterSector] = useState('all');
   const [filterInterest, setFilterInterest] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
+  
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<CompanyDisplay | null>(null);
+  const [editingMyCompany, setEditingMyCompany] = useState<CompanyDisplay | null>(null);
+  const [editingGlobalCompany, setEditingGlobalCompany] = useState<Company | null>(null);
   const [form, setForm] = useState<CompanyFormData>(EMPTY_FORM);
 
   // Delete state
@@ -59,16 +68,28 @@ export default function CompaniesPage() {
   const { addToast } = useToast();
 
   const fetchCompanies = useCallback(async () => {
-    const { data, error } = await supabase
+    // 1. Fetch My List
+    const { data: myData, error: myError } = await supabase
       .from('user_companies')
       .select('*, companies(*)')
       .order('created_at', { ascending: false });
       
-    if (error) {
-      addToast('Failed to load companies', 'error');
+    if (myError) {
+      addToast('Failed to load personal companies', 'error');
     }
     
-    const flattened: CompanyDisplay[] = (data || []).map((row: any) => ({
+    // 2. Fetch Global Database
+    const { data: globalData, error: globalError } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('is_global', true)
+      .order('created_at', { ascending: false });
+
+    if (globalError) {
+      addToast('Failed to load global companies', 'error');
+    }
+    
+    const flattenedMyCompanies: CompanyDisplay[] = (myData || []).map((row: any) => ({
       user_company_id: row.id,
       user_id: row.user_id,
       company_id: row.company_id,
@@ -81,11 +102,13 @@ export default function CompaniesPage() {
       sector: row.companies.sector,
       website_link: row.companies.website_link,
       location: row.companies.location,
+      is_global: row.companies.is_global,
       created_at: row.created_at, // Use the user_company created_at for sorting
       updated_at: row.updated_at,
     }));
     
-    setCompanies(flattened);
+    setMyCompanies(flattenedMyCompanies);
+    setGlobalCompanies(globalData || []);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -94,20 +117,23 @@ export default function CompaniesPage() {
     fetchCompanies();
   }, [fetchCompanies]);
 
-  // Derive unique sector and location values for filter dropdowns
+  // Derive unique sector and location values from BOTH lists for comprehensive filters
   const sectors = useMemo(() => {
-    const unique = Array.from(new Set(companies.map((c) => c.sector).filter(Boolean))).sort();
-    return unique;
-  }, [companies]);
+    const combinedSectors = [...myCompanies.map(c => c.sector), ...globalCompanies.map(c => c.sector)].filter(Boolean);
+    return Array.from(new Set(combinedSectors)).sort();
+  }, [myCompanies, globalCompanies]);
 
   const locations = useMemo(() => {
-    const unique = Array.from(new Set(companies.map((c) => c.location).filter(Boolean))).sort();
-    return unique;
-  }, [companies]);
+    const combinedLocations = [...myCompanies.map(c => c.location), ...globalCompanies.map(c => c.location)].filter(Boolean);
+    return Array.from(new Set(combinedLocations)).sort();
+  }, [myCompanies, globalCompanies]);
+
+  // Determine which list we are filtering and sorting based on active tab
+  const activeList = activeTab === 'myList' ? myCompanies : globalCompanies;
 
   // Filter + Sort
   const filtered = useMemo(() => {
-    let result = companies;
+    let result = [...activeList];
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -120,23 +146,23 @@ export default function CompaniesPage() {
     if (filterSector !== 'all') {
       result = result.filter((c) => c.sector === filterSector);
     }
-    if (filterInterest !== 'all') {
-      result = result.filter((c) => c.interest_level === parseInt(filterInterest));
+    if (activeTab === 'myList' && filterInterest !== 'all') {
+      result = result.filter((c: any) => c.interest_level === parseInt(filterInterest));
     }
     if (filterLocation !== 'all') {
       result = result.filter((c) => c.location === filterLocation);
     }
     // Sort
-    result = [...result].sort((a, b) => {
+    result = result.sort((a: any, b: any) => {
       const aVal = a[sortField];
       const bVal = b[sortField];
       if (aVal == null) return 1;
       if (bVal == null) return -1;
-      const cmp = typeof aVal === 'number' ? aVal - (bVal as number) : String(aVal).localeCompare(String(bVal));
+      const cmp = typeof aVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal));
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return result;
-  }, [companies, search, filterSector, filterInterest, filterLocation, sortField, sortDir]);
+  }, [activeList, activeTab, search, filterSector, filterInterest, filterLocation, sortField, sortDir]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -148,13 +174,15 @@ export default function CompaniesPage() {
   };
 
   const openCreate = () => {
-    setEditingCompany(null);
+    setEditingMyCompany(null);
+    setEditingGlobalCompany(null);
     setForm(EMPTY_FORM);
     setModalOpen(true);
   };
 
-  const openEdit = (company: CompanyDisplay) => {
-    setEditingCompany(company);
+  const openEditMyCompany = (company: CompanyDisplay) => {
+    setEditingMyCompany(company);
+    setEditingGlobalCompany(null);
     setForm({
       company_name: company.company_name,
       sector: company.sector,
@@ -164,8 +192,51 @@ export default function CompaniesPage() {
       last_reviewed: toInputDate(company.last_reviewed),
       linkedin_connections: company.linkedin_connections,
       notes: company.notes,
+      is_global: company.is_global,
     });
     setModalOpen(true);
+  };
+
+  const openEditGlobalCompany = (company: Company) => {
+    setEditingGlobalCompany(company);
+    setEditingMyCompany(null);
+    setForm({
+      ...EMPTY_FORM,
+      company_name: company.company_name,
+      sector: company.sector,
+      website_link: company.website_link,
+      location: company.location,
+      is_global: true,
+    });
+    setModalOpen(true);
+  };
+
+  const addToMyList = async (globalCompany: Company) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Check if it already exists in my list
+    if (myCompanies.some(c => c.company_id === globalCompany.id)) {
+      addToast('Company is already in your list', 'info');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_companies')
+        .insert({
+          user_id: user.id,
+          company_id: globalCompany.id,
+          interest_level: 3,
+          notes: '',
+        });
+      
+      if (error) throw error;
+      addToast(`Added ${globalCompany.company_name} to your list`);
+      fetchCompanies();
+    } catch (err: any) {
+      addToast(err.message || 'Failed to add to list', 'error');
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -176,7 +247,7 @@ export default function CompaniesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found");
 
-      let globalCompanyId = editingCompany?.id;
+      let globalCompanyId = editingMyCompany?.id || editingGlobalCompany?.id;
 
       if (!globalCompanyId) {
         // Look up by name
@@ -189,14 +260,15 @@ export default function CompaniesPage() {
         if (existingCompany) {
           globalCompanyId = existingCompany.id;
         } else {
-          // Create global company
+          // Create new company in master database
           const { data: newCompany, error: createError } = await supabase
             .from('companies')
             .insert({
               company_name: form.company_name,
               sector: form.sector,
               website_link: form.website_link,
-              location: form.location
+              location: form.location,
+              is_global: form.is_global,
             })
             .select()
             .single();
@@ -205,48 +277,61 @@ export default function CompaniesPage() {
           globalCompanyId = newCompany.id;
         }
       } else {
-        // Update global company data just in case
+        // Update global company data
         const { error: updateGlobalError } = await supabase
           .from('companies')
           .update({
-            company_name: form.company_name,
+            // If it is globally shared, only update sector, website link and location
+            // Wait, if it wasn't global before, but the user is making it global now, we can update the name.
+            company_name: (editingMyCompany?.is_global || editingGlobalCompany) ? undefined : form.company_name,
             sector: form.sector,
             website_link: form.website_link,
-            location: form.location
+            location: form.location,
+            is_global: form.is_global,
           })
           .eq('id', globalCompanyId);
           
         if (updateGlobalError) throw updateGlobalError;
       }
 
-      // Upsert user_companies
-      if (editingCompany?.user_company_id) {
-        const { error: userCoError } = await supabase
-          .from('user_companies')
-          .update({
-            interest_level: form.interest_level,
-            last_reviewed: form.last_reviewed,
-            linkedin_connections: form.linkedin_connections,
-            notes: form.notes
-          })
-          .eq('id', editingCompany.user_company_id);
-          
-        if (userCoError) throw userCoError;
-        addToast('Company updated successfully');
+      // If we are explicitly saving a global company (and it's not in our list context),
+      // we might not want to automatically add it to user_companies unless it's a new create.
+      // But let's assume anytime a user creates/edits a company, it goes to their list if it's not already there.
+      
+      if (editingGlobalCompany && !editingMyCompany) {
+        // We are editing a global company from the Global Tab. Just editing its details.
+        addToast('Global company updated');
       } else {
-        const { error: insertUserCoError } = await supabase
-          .from('user_companies')
-          .insert({
-            user_id: user.id,
-            company_id: globalCompanyId,
-            interest_level: form.interest_level,
-            last_reviewed: form.last_reviewed,
-            linkedin_connections: form.linkedin_connections,
-            notes: form.notes
-          });
-          
-        if (insertUserCoError) throw insertUserCoError;
-        addToast('Company added successfully');
+        // Upsert user_companies
+        if (editingMyCompany?.user_company_id) {
+          const { error: userCoError } = await supabase
+            .from('user_companies')
+            .update({
+              interest_level: form.interest_level,
+              last_reviewed: form.last_reviewed,
+              linkedin_connections: form.linkedin_connections,
+              notes: form.notes
+            })
+            .eq('id', editingMyCompany.user_company_id);
+            
+          if (userCoError) throw userCoError;
+          addToast('Company updated successfully');
+        } else {
+          // It's a new company
+          const { error: insertUserCoError } = await supabase
+            .from('user_companies')
+            .insert({
+              user_id: user.id,
+              company_id: globalCompanyId,
+              interest_level: form.interest_level,
+              last_reviewed: form.last_reviewed,
+              linkedin_connections: form.linkedin_connections,
+              notes: form.notes
+            });
+            
+          if (insertUserCoError) throw insertUserCoError;
+          addToast('Company added successfully');
+        }
       }
 
       setModalOpen(false);
@@ -266,11 +351,11 @@ export default function CompaniesPage() {
     try {
       const { error } = await supabase.from('user_companies').delete().eq('id', deleteTarget.user_company_id);
       if (error) throw error;
-      addToast('Company deleted');
+      addToast('Company removed from your list');
       setDeleteTarget(null);
       fetchCompanies();
     } catch {
-      addToast('Failed to delete company', 'error');
+      addToast('Failed to remove company', 'error');
     } finally {
       setDeleting(false);
     }
@@ -313,22 +398,56 @@ export default function CompaniesPage() {
     );
   }
 
+  // Check if editing a global company (locks name in UI)
+  const isEditingGlobal = Boolean(editingGlobalCompany) || Boolean(editingMyCompany?.is_global);
+
   return (
     <div className="page-enter space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
+      {/* Header and Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Companies</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {filtered.length} of {companies.length} companies
-          </p>
+          
+          {/* Tabs Control */}
+          <div className="flex bg-gray-100 p-1 rounded-xl mt-4 w-fit">
+            <button
+              onClick={() => setActiveTab('myList')}
+              className={cn(
+                "px-5 py-2 text-sm font-semibold rounded-lg transition-all",
+                activeTab === 'myList' 
+                  ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5" 
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50/50"
+              )}
+            >
+              My List
+              <span className="ml-2 inline-flex items-center justify-center bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">
+                {myCompanies.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('global')}
+              className={cn(
+                "px-5 py-2 text-sm font-semibold rounded-lg transition-all",
+                activeTab === 'global' 
+                  ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5" 
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50/50"
+              )}
+            >
+              Global Database
+              <span className="ml-2 inline-flex items-center justify-center bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">
+                {globalCompanies.length}
+              </span>
+            </button>
+          </div>
         </div>
-        <Button onClick={openCreate} size="md">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Add Company
-        </Button>
+        <div className="self-end sm:self-auto pb-1">
+          <Button onClick={openCreate} size="md">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Add Company
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -357,14 +476,16 @@ export default function CompaniesPage() {
               onChange={(e) => setFilterSector(e.target.value)}
             />
           </div>
-          <div className="w-40">
-            <Select
-              label="Interest"
-              options={[{ value: 'all', label: 'All' }, ...INTEREST_OPTIONS]}
-              value={filterInterest}
-              onChange={(e) => setFilterInterest(e.target.value)}
-            />
-          </div>
+          {activeTab === 'myList' && (
+            <div className="w-40">
+              <Select
+                label="Interest"
+                options={[{ value: 'all', label: 'All' }, ...INTEREST_OPTIONS]}
+                value={filterInterest}
+                onChange={(e) => setFilterInterest(e.target.value)}
+              />
+            </div>
+          )}
           <div className="w-40">
             <Select
               label="Location"
@@ -383,8 +504,10 @@ export default function CompaniesPage() {
             <div className="text-5xl mb-4">🏢</div>
             <h3 className="text-base font-semibold text-gray-800 mb-1">No companies found</h3>
             <p className="text-sm text-gray-500">
-              {companies.length === 0
-                ? 'Start tracking companies you are interested in!'
+              {activeList.length === 0
+                ? activeTab === 'myList' 
+                    ? 'Start tracking companies you are interested in!' 
+                    : 'The global database is empty.'
                 : 'Try adjusting your filters or search term.'}
             </p>
           </div>
@@ -402,25 +525,38 @@ export default function CompaniesPage() {
                   <th onClick={() => handleSort('location')}>
                     Location <SortIcon field="location" />
                   </th>
-                  <th onClick={() => handleSort('interest_level')}>
-                    Interest <SortIcon field="interest_level" />
-                  </th>
-                  <th onClick={() => handleSort('last_reviewed')}>
-                    Last Reviewed <SortIcon field="last_reviewed" />
-                  </th>
-                  <th>LinkedIn</th>
+                  
+                  {activeTab === 'myList' && (
+                    <>
+                      <th onClick={() => handleSort('interest_level')}>
+                        Interest <SortIcon field="interest_level" />
+                      </th>
+                      <th onClick={() => handleSort('last_reviewed')}>
+                        Last Reviewed <SortIcon field="last_reviewed" />
+                      </th>
+                      <th>LinkedIn</th>
+                    </>
+                  )}
+                  
                   <th>Website</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((company) => {
-                  const badge = interestBadge(company.interest_level);
+                {filtered.map((company: any) => {
+                  
                   return (
-                    <tr key={company.id} className={company.interest_level >= 4 ? 'bg-emerald-50/40' : ''}>
+                    <tr key={company.id} className={company.interest_level && company.interest_level >= 4 ? 'bg-emerald-50/40' : ''}>
                       <td>
-                        <span className="font-medium text-gray-900">{company.company_name}</span>
-                        {company.notes && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">{company.company_name}</span>
+                          {activeTab === 'myList' && company.is_global && (
+                            <span className="bg-blue-100 text-blue-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded" title="Available in the Global Database">
+                              Global
+                            </span>
+                          )}
+                        </div>
+                        {activeTab === 'myList' && company.notes && (
                           <span className="block text-xs text-gray-400 mt-0.5 truncate max-w-[200px]">
                             {company.notes}
                           </span>
@@ -436,20 +572,26 @@ export default function CompaniesPage() {
                         )}
                       </td>
                       <td className="text-gray-600">{company.location || '—'}</td>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          {renderStars(company.interest_level)}
-                          <Badge bg={badge.bg} text={badge.text}>
-                            {badge.label}
-                          </Badge>
-                        </div>
-                      </td>
-                      <td className="text-gray-500 text-xs whitespace-nowrap">
-                        {formatDate(company.last_reviewed)}
-                      </td>
-                      <td className="text-gray-600 text-sm">
-                        {company.linkedin_connections || '—'}
-                      </td>
+                      
+                      {activeTab === 'myList' && (
+                        <>
+                          <td>
+                            <div className="flex items-center gap-2">
+                              {renderStars(company.interest_level)}
+                              <Badge bg={interestBadge(company.interest_level).bg} text={interestBadge(company.interest_level).text}>
+                                {interestBadge(company.interest_level).label}
+                              </Badge>
+                            </div>
+                          </td>
+                          <td className="text-gray-500 text-xs whitespace-nowrap">
+                            {formatDate(company.last_reviewed)}
+                          </td>
+                          <td className="text-gray-600 text-sm">
+                            {company.linkedin_connections || '—'}
+                          </td>
+                        </>
+                      )}
+                      
                       <td>
                         {company.website_link ? (
                           <a
@@ -465,9 +607,19 @@ export default function CompaniesPage() {
                         )}
                       </td>
                       <td>
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2">
+                          {activeTab === 'global' && (
+                            <button
+                              onClick={() => addToMyList(company)}
+                              className="px-2 py-1 text-xs font-medium rounded-lg text-brand-600 bg-brand-50 hover:bg-brand-100 transition-colors"
+                              title="Add to My List"
+                            >
+                              Add to My List
+                            </button>
+                          )}
+                          
                           <button
-                            onClick={() => openEdit(company)}
+                            onClick={() => activeTab === 'myList' ? openEditMyCompany(company) : openEditGlobalCompany(company)}
                             className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
                             title="Edit"
                           >
@@ -475,15 +627,18 @@ export default function CompaniesPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                             </svg>
                           </button>
-                          <button
-                            onClick={() => setDeleteTarget(company)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title="Delete"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                            </svg>
-                          </button>
+                          
+                          {activeTab === 'myList' && (
+                            <button
+                              onClick={() => setDeleteTarget(company)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="Remove from List"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -499,18 +654,34 @@ export default function CompaniesPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingCompany ? 'Edit Company' : 'Add New Company'}
+        title={
+          editingMyCompany 
+            ? 'Edit My Tracking Details' 
+            : editingGlobalCompany 
+              ? 'Edit Global Company Details' 
+              : 'Add New Company'
+        }
         size="lg"
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Company Name *"
-              value={form.company_name}
-              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-              required
-              placeholder="Google, Apple, etc."
-            />
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-gray-700">Company Name *</label>
+              <input
+                type="text"
+                value={form.company_name}
+                onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+                required
+                disabled={isEditingGlobal}
+                placeholder="Google, Apple, etc."
+                className={cn(
+                  "w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring",
+                  isEditingGlobal ? "bg-gray-50 text-gray-500 cursor-not-allowed" : "bg-white"
+                )}
+                title={isEditingGlobal ? "Company name is locked for global companies" : ""}
+              />
+            </div>
+            
             <Combobox
               label="Sector"
               options={sectors}
@@ -518,6 +689,8 @@ export default function CompaniesPage() {
               onChange={(val) => setForm({ ...form, sector: val })}
               placeholder="Tech, Finance, Healthcare..."
             />
+            
+            {/* The user requested location to be editable for global companies as well */}
             <Combobox
               label="Location"
               options={locations}
@@ -525,6 +698,7 @@ export default function CompaniesPage() {
               onChange={(val) => setForm({ ...form, location: val })}
               placeholder="Berlin, Germany"
             />
+            
             <Input
               label="Website"
               type="url"
@@ -532,41 +706,66 @@ export default function CompaniesPage() {
               onChange={(e) => setForm({ ...form, website_link: e.target.value })}
               placeholder="https://..."
             />
-            <Select
-              label="Interest Level"
-              options={INTEREST_OPTIONS}
-              value={String(form.interest_level)}
-              onChange={(e) => setForm({ ...form, interest_level: parseInt(e.target.value) })}
-            />
-            <Input
-              label="Last Reviewed"
-              type="date"
-              value={form.last_reviewed}
-              onChange={(e) => setForm({ ...form, last_reviewed: e.target.value })}
-            />
+            
+            {(!editingGlobalCompany) && (
+              <>
+                <Select
+                  label="Interest Level"
+                  options={INTEREST_OPTIONS}
+                  value={String(form.interest_level)}
+                  onChange={(e) => setForm({ ...form, interest_level: parseInt(e.target.value) })}
+                />
+                <Input
+                  label="Last Reviewed"
+                  type="date"
+                  value={form.last_reviewed}
+                  onChange={(e) => setForm({ ...form, last_reviewed: e.target.value })}
+                />
+              </>
+            )}
           </div>
-          <Input
-            label="LinkedIn Connections"
-            value={form.linkedin_connections}
-            onChange={(e) => setForm({ ...form, linkedin_connections: e.target.value })}
-            placeholder="3 connections, John Doe (PM)..."
-          />
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-gray-700">Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              rows={3}
-              placeholder="Why you're interested, culture, open roles..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
+
+          {(!editingGlobalCompany) && (
+            <>
+              <Input
+                label="LinkedIn Connections"
+                value={form.linkedin_connections}
+                onChange={(e) => setForm({ ...form, linkedin_connections: e.target.value })}
+                placeholder="3 connections, John Doe (PM)..."
+              />
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-gray-700">Notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  rows={3}
+                  placeholder="Why you're interested, culture, open roles..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
+                />
+              </div>
+            </>
+          )}
+          
+          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center">
+            <input
+              id="is_global_checkbox"
+              type="checkbox"
+              checked={form.is_global}
+              onChange={(e) => setForm({ ...form, is_global: e.target.checked })}
+              className="w-4 h-4 text-brand-600 rounded border-gray-300 focus:ring-brand-500"
+              disabled={isEditingGlobal}
             />
+            <label htmlFor="is_global_checkbox" className="ml-2 text-sm text-gray-700">
+              Make this company global (available to everyone in the database)
+            </label>
           </div>
+          
           <div className="flex items-center justify-end gap-3 pt-2">
             <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" loading={saving}>
-              {editingCompany ? 'Save Changes' : 'Add Company'}
+              {editingMyCompany || editingGlobalCompany ? 'Save Changes' : 'Add Company'}
             </Button>
           </div>
         </form>
@@ -577,7 +776,7 @@ export default function CompaniesPage() {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Delete Company"
+        title="Remove Company"
         message={`Are you sure you want to stop tracking "${deleteTarget?.company_name}"?`}
         loading={deleting}
       />

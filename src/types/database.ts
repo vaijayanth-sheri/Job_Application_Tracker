@@ -62,6 +62,7 @@ export interface Company {
   sector: string;
   website_link: string;
   location: string;
+  is_global: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -101,6 +102,7 @@ export type CompanyFormData = {
   last_reviewed: string;
   linkedin_connections: string;
   notes: string;
+  is_global: boolean;
 };
 
 export interface AISettings {

@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS companies (
   sector VARCHAR(50) DEFAULT '',
   website_link TEXT DEFAULT '',
   location VARCHAR(50) DEFAULT '',
+  is_global BOOLEAN DEFAULT true,
   interest_level INTEGER DEFAULT 3
     CHECK (interest_level >= 1 AND interest_level <= 5),
   last_reviewed DATE DEFAULT CURRENT_DATE,
@@ -171,9 +172,9 @@ CREATE TABLE IF NOT EXISTS companies (
 -- Companies RLS
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own companies"
+CREATE POLICY "Users can view global or private companies"
   ON companies FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (is_global = true OR id IN (SELECT company_id FROM user_companies WHERE user_id = auth.uid()));
 
 CREATE POLICY "Users can insert their own companies"
   ON companies FOR INSERT
