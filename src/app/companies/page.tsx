@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import { type CompanyDisplay, type CompanyFormData, type Company } from '@/types/database';
-import { formatDate, toInputDate, cn } from '@/lib/utils';
+import { formatDate, toInputDate, cn, formatUrl } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
@@ -585,9 +585,9 @@ export default function CompaniesPage() {
                         <td className="text-gray-500 text-xs whitespace-nowrap">{formatDate(company.last_reviewed)}</td>
                         <td className="text-gray-600 text-sm">{company.linkedin_connections || '—'}</td>
                         <td>
-                          {company.website_link ? (
-                            <a href={company.website_link} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
-                          ) : <span className="text-gray-300">—</span>}
+                        {company.website_link ? (
+                          <a href={formatUrl(company.website_link)} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
+                        ) : <span className="text-gray-300">—</span>}
                         </td>
                         <td>
                           <button 
@@ -663,7 +663,7 @@ export default function CompaniesPage() {
                       <td className="text-gray-600">{company.location || '—'}</td>
                       <td>
                         {company.website_link ? (
-                          <a href={company.website_link} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
+                          <a href={formatUrl(company.website_link)} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
                       <td>

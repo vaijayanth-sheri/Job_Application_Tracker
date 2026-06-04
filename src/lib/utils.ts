@@ -5,6 +5,16 @@ export function cn(...classes: (string | boolean | undefined | null)[]): string 
   return classes.filter(Boolean).join(' ');
 }
 
+/** Format a URL to ensure it has http(s) prefix */
+export function formatUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  url = url.trim();
+  if (!/^https?:\/\//i.test(url)) {
+    return `https://${url}`;
+  }
+  return url;
+}
+
 /** Format date to readable string */
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';

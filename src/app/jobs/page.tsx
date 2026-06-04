@@ -10,6 +10,7 @@ import {
   getRelevancyColor,
   statusLabel,
   cn,
+  formatUrl,
 } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -582,7 +583,7 @@ export default function JobsPage() {
                       <td>
                         {job.job_link ? (
                           <a
-                            href={job.job_link}
+                            href={formatUrl(job.job_link)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-brand-600 hover:text-brand-700 text-xs font-medium"
