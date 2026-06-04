@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { type Job, type JobStatus, type JobFormData } from '@/types/database';
+import { type Job, type JobStatus, type JobFormData, type CompanyFormData } from '@/types/database';
 import {
   formatDate,
   toInputDate,
@@ -76,6 +76,16 @@ export default function JobsPage() {
   const [smartMode, setSmartMode] = useState(false);
   const [jobDescription, setJobDescription] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [smartCompanyData, setSmartCompanyData] = useState<{sector: string, website_link: string} | null>(null);
+
+  // Company linking state
+  const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [pendingJobId, setPendingJobId] = useState<string | null>(null);
+  const [pendingCompanyName, setPendingCompanyName] = useState('');
+  const [companyForm, setCompanyForm] = useState<Partial<CompanyFormData>>({
+    sector: '', website_link: '', location: '', interest_level: 3, notes: ''
+  });
+  const [savingCompany, setSavingCompany] = useState(false);
 
   const supabase = createClient();
   const { addToast } = useToast();
@@ -179,27 +189,13 @@ export default function JobsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Fuzzy check for company existence
-      if (form.company) {
-        const { data: existingCompanies } = await supabase
-          .from('companies')
-          .select('id, company_name')
-          .ilike('company_name', `%${form.company}%`)
-          .eq('user_id', user.id);
-
-        if (!existingCompanies || existingCompanies.length === 0) {
-          // Auto-add new company
-          await supabase
-            .from('companies')
-            .insert({ company_name: form.company, user_id: user.id });
-        }
-      }
-
       // Convert empty strings to null for date/optional fields
       const payload = {
         ...form,
         applied_date: form.applied_date || null,
       };
+
+      let savedJobId = editingJob?.id;
 
       if (editingJob) {
         const { error } = await supabase
@@ -209,18 +205,118 @@ export default function JobsPage() {
         if (error) throw error;
         addToast('Job updated successfully');
       } else {
-        const { error } = await supabase
+        const { data: insertedJob, error } = await supabase
           .from('jobs')
-          .insert({ ...payload, user_id: user.id });
+          .insert({ ...payload, user_id: user.id })
+          .select('id')
+          .single();
         if (error) throw error;
+        savedJobId = insertedJob.id;
         addToast('Job added successfully');
       }
       setModalOpen(false);
-      fetchJobs();
+      
+      // Auto-link or prompt for company
+      if (form.company && savedJobId) {
+        const { data: existingCompany } = await supabase
+          .from('companies')
+          .select('id')
+          .ilike('company_name', form.company)
+          .maybeSingle();
+
+        let userCompanyExists = false;
+        let globalCompanyId = existingCompany?.id;
+
+        if (globalCompanyId) {
+          const { data: userCompany } = await supabase
+            .from('user_companies')
+            .select('id')
+            .eq('company_id', globalCompanyId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+          if (userCompany) userCompanyExists = true;
+        }
+
+        if (userCompanyExists && globalCompanyId) {
+          // Link it automatically
+          await supabase.from('jobs').update({ company_id: globalCompanyId }).eq('id', savedJobId);
+          fetchJobs();
+        } else {
+          // Trigger company save modal
+          setPendingJobId(savedJobId);
+          setPendingCompanyName(form.company);
+          setCompanyForm({
+            sector: smartCompanyData?.sector || '',
+            website_link: smartCompanyData?.website_link || '',
+            location: form.location || '',
+            interest_level: 3,
+            notes: ''
+          });
+          setCompanyModalOpen(true);
+        }
+      } else {
+        fetchJobs();
+      }
     } catch (err: any) {
       addToast(err.message || 'Failed to save job', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingCompany(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      let globalCompanyId;
+      const { data: existingCompany } = await supabase
+        .from('companies')
+        .select('id')
+        .ilike('company_name', pendingCompanyName)
+        .maybeSingle();
+
+      if (existingCompany) {
+        globalCompanyId = existingCompany.id;
+      } else {
+        const { data: newCompany, error } = await supabase
+          .from('companies')
+          .insert({
+            company_name: pendingCompanyName,
+            sector: companyForm.sector,
+            website_link: companyForm.website_link,
+            location: companyForm.location,
+            is_global: false,
+          })
+          .select('id')
+          .single();
+        if (error) throw error;
+        globalCompanyId = newCompany.id;
+      }
+
+      const { error: ucError } = await supabase
+        .from('user_companies')
+        .insert({
+          user_id: user.id,
+          company_id: globalCompanyId,
+          interest_level: companyForm.interest_level || 3,
+          notes: companyForm.notes || '',
+        });
+      if (ucError) throw ucError;
+
+      if (pendingJobId) {
+        await supabase.from('jobs').update({ company_id: globalCompanyId }).eq('id', pendingJobId);
+      }
+
+      addToast('Company saved and linked to job!');
+      setCompanyModalOpen(false);
+      fetchJobs();
+    } catch (err: any) {
+      addToast(err.message || 'Failed to save company', 'error');
+    } finally {
+      setSavingCompany(false);
     }
   };
 
@@ -305,6 +401,10 @@ export default function JobsPage() {
         notes: data.notes || prev.notes,
         // applied_date, status, and other fields are intentionally left untouched
       }));
+      setSmartCompanyData({
+        sector: data.company_sector || '',
+        website_link: data.company_website || ''
+      });
       setSmartMode(false);
       addToast('Job details extracted successfully');
     } catch (err: any) {
@@ -639,6 +739,55 @@ export default function JobsPage() {
           </div>
         </form>
         )}
+      </Modal>
+
+      {/* Save Company Modal */}
+      <Modal
+        isOpen={companyModalOpen}
+        onClose={() => setCompanyModalOpen(false)}
+        title="Save Company to Personal List"
+        size="md"
+      >
+        <form onSubmit={handleSaveCompany} className="space-y-4">
+          <p className="text-sm text-gray-600 mb-4">
+            The company <strong>{pendingCompanyName}</strong> is not in your personal list. Would you like to track it?
+          </p>
+          <div className="space-y-3">
+            <Input
+              label="Sector"
+              value={companyForm.sector}
+              onChange={(e) => setCompanyForm({ ...companyForm, sector: e.target.value })}
+              placeholder="Technology, Finance..."
+            />
+            <Input
+              label="Website Link"
+              type="url"
+              value={companyForm.website_link}
+              onChange={(e) => setCompanyForm({ ...companyForm, website_link: e.target.value })}
+              placeholder="https://..."
+            />
+            <Input
+              label="Location"
+              value={companyForm.location}
+              onChange={(e) => setCompanyForm({ ...companyForm, location: e.target.value })}
+              placeholder="City, Country"
+            />
+            <Select
+              label="Interest Level"
+              options={INTEREST_OPTIONS}
+              value={String(companyForm.interest_level)}
+              onChange={(e) => setCompanyForm({ ...companyForm, interest_level: parseInt(e.target.value) })}
+            />
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-4">
+            <Button variant="secondary" type="button" onClick={() => setCompanyModalOpen(false)}>
+              Skip
+            </Button>
+            <Button type="submit" loading={savingCompany}>
+              Save Company
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       {/* Delete Confirm */}

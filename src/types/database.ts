@@ -10,6 +10,7 @@ export type SkillStatus = 'to_learn' | 'in_progress' | 'learned';
 export interface Job {
   id: string;
   user_id: string;
+  company_id?: string;
   title: string;
   company: string;
   applied_date: string;

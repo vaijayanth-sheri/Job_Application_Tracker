@@ -64,6 +64,16 @@ export default function CompaniesPage() {
   const [deleteTarget, setDeleteTarget] = useState<CompanyDisplay | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Jobs state for "Jobs Applied" feature
+  const [userJobs, setUserJobs] = useState<any[]>([]);
+  const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClick = () => setExpandedCompanyId(null);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
   const supabase = createClient();
   const { addToast } = useToast();
 
@@ -109,6 +119,17 @@ export default function CompaniesPage() {
     
     setMyCompanies(flattenedMyCompanies);
     setGlobalCompanies(globalData || []);
+    
+    // 3. Fetch user's jobs for the Jobs Applied column
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: jobsData } = await supabase
+        .from('jobs')
+        .select('id, title, status, company_id')
+        .eq('user_id', user.id);
+      setUserJobs(jobsData || []);
+    }
+    
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -523,55 +544,93 @@ export default function CompaniesPage() {
                   <th onClick={() => handleSort('last_reviewed')}>Last Reviewed <SortIcon field="last_reviewed" /></th>
                   <th>LinkedIn</th>
                   <th>Website</th>
+                  <th>Jobs Applied</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((company: any) => (
-                  <tr key={company.user_company_id} className={company.interest_level && company.interest_level >= 4 ? 'bg-emerald-50/40' : ''}>
-                    <td>
-                      <span className="font-medium text-gray-900">{company.company_name}</span>
-                      {company.notes && (
-                        <span className="block text-xs text-gray-400 mt-0.5 truncate max-w-[200px]">
-                          {company.notes}
-                        </span>
+                {filtered.map((company: any) => {
+                  const companyJobs = userJobs.filter((j: any) => j.company_id === company.id);
+                  const isExpanded = expandedCompanyId === company.id;
+                  
+                  return (
+                    <React.Fragment key={company.user_company_id}>
+                      <tr className={company.interest_level && company.interest_level >= 4 ? 'bg-emerald-50/40' : ''}>
+                        <td>
+                          <span className="font-medium text-gray-900">{company.company_name}</span>
+                          {company.notes && (
+                            <span className="block text-xs text-gray-400 mt-0.5 truncate max-w-[200px]">
+                              {company.notes}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {company.sector ? <Badge bg="bg-violet-100" text="text-violet-700">{company.sector}</Badge> : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="text-gray-600">{company.location || '—'}</td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            {renderStars(company.interest_level)}
+                            <Badge bg={interestBadge(company.interest_level).bg} text={interestBadge(company.interest_level).text}>
+                              {interestBadge(company.interest_level).label}
+                            </Badge>
+                          </div>
+                        </td>
+                        <td className="text-gray-500 text-xs whitespace-nowrap">{formatDate(company.last_reviewed)}</td>
+                        <td className="text-gray-600 text-sm">{company.linkedin_connections || '—'}</td>
+                        <td>
+                          {company.website_link ? (
+                            <a href={company.website_link} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
+                          ) : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedCompanyId(isExpanded ? null : company.id);
+                            }}
+                            className={cn("px-2 py-1 text-xs font-medium rounded-lg transition-colors", companyJobs.length > 0 ? "text-brand-700 bg-brand-50 hover:bg-brand-100" : "text-gray-500 bg-gray-50")}
+                          >
+                            {companyJobs.length} {companyJobs.length === 1 ? 'job' : 'jobs'}
+                          </button>
+                        </td>
+                        <td>
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => openEditMyCompany(company)} className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="Edit">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                              </svg>
+                            </button>
+                            <button onClick={() => setDeleteTarget(company)} className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Remove from List">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && companyJobs.length > 0 && (
+                        <tr>
+                          <td colSpan={9} className="p-0 border-b-0">
+                            <div className="bg-gray-50/80 px-6 py-4 border-b border-gray-100 shadow-inner">
+                              <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Applied Jobs</h4>
+                              <div className="grid gap-2">
+                                {companyJobs.map((job: any) => (
+                                  <div key={job.id} className="flex items-center justify-between bg-white px-4 py-2.5 rounded-lg shadow-sm border border-gray-100">
+                                    <span className="text-sm font-medium text-gray-900">{job.title}</span>
+                                    <Badge bg="bg-gray-100" text="text-gray-700">
+                                      {job.status}
+                                    </Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td>
-                      {company.sector ? <Badge bg="bg-violet-100" text="text-violet-700">{company.sector}</Badge> : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="text-gray-600">{company.location || '—'}</td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        {renderStars(company.interest_level)}
-                        <Badge bg={interestBadge(company.interest_level).bg} text={interestBadge(company.interest_level).text}>
-                          {interestBadge(company.interest_level).label}
-                        </Badge>
-                      </div>
-                    </td>
-                    <td className="text-gray-500 text-xs whitespace-nowrap">{formatDate(company.last_reviewed)}</td>
-                    <td className="text-gray-600 text-sm">{company.linkedin_connections || '—'}</td>
-                    <td>
-                      {company.website_link ? (
-                        <a href={company.website_link} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
-                      ) : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td>
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openEditMyCompany(company)} className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="Edit">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                          </svg>
-                        </button>
-                        <button onClick={() => setDeleteTarget(company)} className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Remove from List">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
