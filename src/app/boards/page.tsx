@@ -36,25 +36,33 @@ export default function BoardsPage() {
   const { addToast } = useToast();
 
   const fetchBoards = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data, error } = await supabase
-      .from('user_job_boards')
-      .select('*, job_boards(*)')
-      .order('last_browsed', { ascending: false });
+      .from('job_boards')
+      .select('*, user_job_boards(*)')
+      .order('site', { ascending: true });
+
     if (error) addToast('Failed to load boards', 'error');
     
-    const flattened: JobBoardDisplay[] = (data || []).map((row: any) => ({
-      user_job_board_id: row.id,
-      user_id: row.user_id,
-      job_board_id: row.job_board_id,
-      last_browsed: row.last_browsed,
-      keywords: row.keywords,
-      notes: row.notes,
-      id: row.job_boards.id,
-      site: row.job_boards.site,
-      link: row.job_boards.link,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    }));
+    const flattened: JobBoardDisplay[] = (data || []).map((row: any) => {
+      // Due to RLS, user_job_boards only has records for the current user
+      const userBoard = row.user_job_boards?.[0];
+      return {
+        id: row.id,
+        site: row.site,
+        link: row.link,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        user_job_board_id: userBoard?.id,
+        user_id: userBoard?.user_id,
+        job_board_id: row.id,
+        last_browsed: userBoard?.last_browsed || '',
+        keywords: userBoard?.keywords || '',
+        notes: userBoard?.notes || '',
+      };
+    });
 
     setBoards(flattened);
     setLoading(false);
@@ -86,7 +94,7 @@ export default function BoardsPage() {
     setForm({
       site: board.site,
       link: board.link,
-      last_browsed: toInputDate(board.last_browsed),
+      last_browsed: board.user_job_board_id ? toInputDate(board.last_browsed) : new Date().toISOString().split('T')[0],
       keywords: board.keywords,
       notes: board.notes,
     });
@@ -104,6 +112,7 @@ export default function BoardsPage() {
       let globalBoardId = editingBoard?.id;
 
       if (!globalBoardId) {
+        // Adding a completely new board
         const { data: existing } = await supabase
           .from('job_boards')
           .select('id')
@@ -122,6 +131,7 @@ export default function BoardsPage() {
           globalBoardId = newBoard.id;
         }
       } else {
+        // We only allow updating the global site name and link here if needed
         const { error: updateGlobalError } = await supabase
           .from('job_boards')
           .update({ site: form.site, link: form.link })
@@ -130,6 +140,7 @@ export default function BoardsPage() {
       }
 
       if (editingBoard?.user_job_board_id) {
+        // Update existing tracked board
         const { error } = await supabase
           .from('user_job_boards')
           .update({
@@ -141,6 +152,7 @@ export default function BoardsPage() {
         if (error) throw error;
         addToast('Board updated');
       } else {
+        // Track the board for the first time
         const { error } = await supabase
           .from('user_job_boards')
           .insert({
@@ -151,7 +163,7 @@ export default function BoardsPage() {
             notes: form.notes
           });
         if (error) throw error;
-        addToast('Board added');
+        addToast(editingBoard ? 'Started tracking board' : 'Board added');
       }
       setModalOpen(false);
       fetchBoards();
@@ -163,16 +175,17 @@ export default function BoardsPage() {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !deleteTarget.user_job_board_id) return;
     setDeleting(true);
     try {
+      // We only delete the user tracking link, the global job board remains
       const { error } = await supabase.from('user_job_boards').delete().eq('id', deleteTarget.user_job_board_id);
       if (error) throw error;
-      addToast('Board deleted');
+      addToast('Stopped tracking board');
       setDeleteTarget(null);
       fetchBoards();
     } catch {
-      addToast('Failed to delete board', 'error');
+      addToast('Failed to untrack board', 'error');
     } finally {
       setDeleting(false);
     }
@@ -181,17 +194,35 @@ export default function BoardsPage() {
   // Mark as browsed today
   const markBrowsed = async (board: JobBoardDisplay) => {
     const today = new Date().toISOString().split('T')[0];
-    const { error } = await supabase
-      .from('user_job_boards')
-      .update({ last_browsed: today })
-      .eq('id', board.user_job_board_id);
-    if (error) {
-      addToast('Failed to update', 'error');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    if (board.user_job_board_id) {
+      const { error } = await supabase
+        .from('user_job_boards')
+        .update({ last_browsed: today })
+        .eq('id', board.user_job_board_id);
+      if (error) {
+        addToast('Failed to update', 'error');
+      } else {
+        fetchBoards();
+        addToast('Marked as browsed today');
+      }
     } else {
-      setBoards((prev) =>
-        prev.map((b) => (b.user_job_board_id === board.user_job_board_id ? { ...b, last_browsed: today } : b))
-      );
-      addToast('Marked as browsed today');
+      // If untracked, we track it first with today's date
+      const { error } = await supabase
+        .from('user_job_boards')
+        .insert({
+          user_id: user.id,
+          job_board_id: board.id,
+          last_browsed: today,
+        });
+      if (error) {
+        addToast('Failed to track', 'error');
+      } else {
+        fetchBoards();
+        addToast('Tracked and marked as browsed');
+      }
     }
   };
 
@@ -214,7 +245,7 @@ export default function BoardsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Job Boards</h1>
-          <p className="text-sm text-gray-500 mt-1">Your go-to job search sites</p>
+          <p className="text-sm text-gray-500 mt-1">Global list of job search sites available for tracking</p>
         </div>
         <Button onClick={openCreate}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -252,17 +283,21 @@ export default function BoardsPage() {
           {filtered.map((board) => (
             <div
               key={board.id}
-              className="glass-card p-5 flex flex-col gap-3 group hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+              className={`glass-card p-5 flex flex-col gap-3 group transition-all duration-300 ${board.user_job_board_id ? 'border-brand-200 shadow-md hover:-translate-y-0.5 hover:shadow-xl' : 'opacity-80 hover:opacity-100 hover:shadow-lg'}`}
             >
               {/* Header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-violet-100 flex items-center justify-center text-lg font-bold text-brand-700">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold ${board.user_job_board_id ? 'bg-gradient-to-br from-brand-100 to-violet-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>
                     {board.site.charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">{board.site}</h3>
-                    <p className="text-xs text-gray-400">Last: {formatDate(board.last_browsed)}</p>
+                    {board.user_job_board_id ? (
+                      <p className="text-xs text-gray-400">Last: {formatDate(board.last_browsed)}</p>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">Untracked</p>
+                    )}
                   </div>
                 </div>
 
@@ -270,26 +305,28 @@ export default function BoardsPage() {
                   <button
                     onClick={() => openEdit(board)}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                    title="Edit"
+                    title={board.user_job_board_id ? "Edit Details" : "Track & Add Details"}
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                     </svg>
                   </button>
-                  <button
-                    onClick={() => setDeleteTarget(board)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                    title="Delete"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                    </svg>
-                  </button>
+                  {board.user_job_board_id && (
+                    <button
+                      onClick={() => setDeleteTarget(board)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      title="Untrack"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Keywords */}
-              {board.keywords && (
+              {board.keywords && board.user_job_board_id && (
                 <div className="flex flex-wrap gap-1.5">
                   {board.keywords.split(',').map((kw, i) => (
                     <span
@@ -303,7 +340,7 @@ export default function BoardsPage() {
               )}
 
               {/* Notes */}
-              {board.notes && (
+              {board.notes && board.user_job_board_id && (
                 <p className="text-xs text-gray-500 line-clamp-2">{board.notes}</p>
               )}
 
@@ -324,9 +361,13 @@ export default function BoardsPage() {
                 )}
                 <button
                   onClick={() => markBrowsed(board)}
-                  className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                  className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
+                    board.user_job_board_id 
+                      ? 'border-brand-200 text-brand-600 hover:bg-brand-50' 
+                      : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                  }`}
                 >
-                  ✓ Browsed
+                  {board.user_job_board_id ? '✓ Browsed' : '+ Track'}
                 </button>
               </div>
             </div>
@@ -338,7 +379,7 @@ export default function BoardsPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingBoard ? 'Edit Board' : 'Add New Board'}
+        title={editingBoard ? (editingBoard.user_job_board_id ? 'Edit Tracked Board' : 'Start Tracking Board') : 'Add New Global Board'}
       >
         <form onSubmit={handleSave} className="space-y-4">
           <Combobox
@@ -370,12 +411,12 @@ export default function BoardsPage() {
             placeholder="React, Senior, Remote (comma-separated)"
           />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-gray-700">Notes</label>
+            <label className="block text-sm font-medium text-gray-700">Notes (Personal)</label>
             <textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={3}
-              placeholder="Any notes about this board..."
+              placeholder="Any personal notes about this board..."
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
             />
           </div>
@@ -384,7 +425,7 @@ export default function BoardsPage() {
               Cancel
             </Button>
             <Button type="submit" loading={saving}>
-              {editingBoard ? 'Save Changes' : 'Add Board'}
+              {editingBoard ? 'Save Details' : 'Add & Track'}
             </Button>
           </div>
         </form>
@@ -395,8 +436,8 @@ export default function BoardsPage() {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Delete Board"
-        message={`Are you sure you want to stop tracking "${deleteTarget?.site}"?`}
+        title="Untrack Board"
+        message={`Are you sure you want to stop tracking "${deleteTarget?.site}"? Your personal keywords and notes will be removed.`}
         loading={deleting}
       />
     </div>
