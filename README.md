@@ -1,6 +1,6 @@
 # JobTracker — Job Application Tracker
 
-A lightweight, fast, and intuitive web application to track job applications, job boards, and skill gaps. Built with **Next.js 14**, **Supabase**, and **Tailwind CSS**.
+A comprehensive, fast, and intuitive web application to track job applications, companies, job boards, skill gaps, and manage your core candidate profile. Built with **Next.js 14**, **Supabase**, and **Tailwind CSS**.
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)
@@ -9,22 +9,30 @@ A lightweight, fast, and intuitive web application to track job applications, jo
 
 ---
 
-## Features
+## 🌟 Major Features
 
-- **Dashboard** — Stats overview with total, applied, interview, rejected, offers count. Filter by status and date range.
-- **Jobs** — Full data table with search, filter, sort, inline status editing, and modal forms for create/edit.
-- **Companies** — Track companies of interest with sector tags, interest-level stars, LinkedIn connections, and website quick-links.
-- **Job Boards** — Card-based layout with quick-access links, keyword tags, and browsed-date tracking.
-- **Skills** — Track skill gaps grouped by category with priority levels, progress bars, and click-to-cycle status.
-- **Smart Suggestions** — Auto-complete dropdowns automatically derive previous entries (like company names, locations, and sectors) to speed up data entry without heavy database reads.
-- **Auth** — Email/password authentication via Supabase Auth.
-- **RLS** — Row-Level Security ensures data is private per user.
-- **Optimized Database** — Strict `VARCHAR` types, smart index targeting, and automatic `updated_at` timestamps for performance.
-- **Responsive** — Works natively on desktop and mobile.
+- **Dashboard & Analytics** — A dynamic overview with total applications, interview counts, offers, and rejections. Filter by status and specific date ranges.
+- **Job Application Tracking** — Full data table with search, filter, sort, inline status editing, and sleek modal forms to log and manage your job hunt.
+- **Global & Tracked Companies** — A shared global database of companies. Users can "track" global companies to add their private interest-level stars, LinkedIn connections, and notes without polluting the global list.
+- **Global Job Boards** — A comprehensive, globally-accessible directory of job search sites. Users can "track" specific boards to add their personal keywords, browsing dates, and private notes.
+- **Quick Notes (Floating Notepad)** — A globally accessible floating notepad that sits in the corner of your screen on every page. Perfect for rapidly storing job links or titles before properly logging them.
+- **Candidate Profile Builder** — A dedicated section to manage your professional identity. Store your Professional Summary, Experience, Projects, Education, and Core Skills in one centralized database.
+- **AI Workshop / Generator** — Integrated workspace to generate and format Cover Letters and CVs using your built-in candidate profile data.
+- **Skill Gap Tracking** — Track required skills you've discovered during your job hunt. Group them by category, assign priorities, and visually monitor your learning progress.
+- **Smart Suggestions** — Auto-complete dropdowns intelligently suggest previous entries (like company names, locations, and sectors) to vastly speed up data entry.
 
 ---
 
-## Prerequisites
+## 🔒 Security & Performance
+
+- **Authentication** — Secure Email/Password authentication powered by Supabase Auth.
+- **Row-Level Security (RLS)** — Robust PostgreSQL policies ensure that user-specific data (notes, tracked companies, quick notes, profile data) remains strictly private and invisible to other users.
+- **Optimized Architecture** — Strict data types, intelligent junction tables for global vs. private data, index targeting, and automatic timestamps for lightning-fast performance.
+- **Modern UI/UX** — Responsive layouts, micro-animations, glassmorphism, and dynamic visual feedback tailored for desktop and mobile.
+
+---
+
+## 🛠️ Prerequisites
 
 - **Node.js** ≥ 18
 - **npm** ≥ 9
@@ -32,7 +40,7 @@ A lightweight, fast, and intuitive web application to track job applications, jo
 
 ---
 
-## Setup
+## 🚀 Setup & Installation
 
 ### 1. Clone & Install
 
@@ -46,9 +54,7 @@ npm install
 
 1. Go to your [Supabase Dashboard](https://supabase.com/dashboard)
 2. Create a new project (or use an existing one)
-3. Go to **Settings → API** and copy:
-   - `Project URL`
-   - `anon / public` key
+3. Go to **Settings → API** and copy your `Project URL` and `anon / public` key.
 
 ### 3. Set Environment Variables
 
@@ -63,14 +69,16 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
-### 4. Run Database Schema
+### 4. Run Database Migrations
 
 1. Go to **Supabase Dashboard → SQL Editor**
 2. Click **New Query**
-3. Paste the contents of `supabase_schema.sql`
-4. Click **Run**
+3. Paste and execute the contents of `supabase_schema.sql` (Base setup)
+4. Execute `migrate_to_global.sql` (Sets up Global Companies & Job Boards)
+5. Execute `quick_notes_schema.sql` (Sets up Quick Notes)
+6. Execute `candidate_database.sql` and `ai_settings_table.sql` (Sets up Profile & Workshop)
 
-This creates the `jobs`, `companies`, `job_boards`, and `skills` tables with Row-Level Security policies.
+*Note: You can execute these iteratively as you explore the project.*
 
 ### 5. Enable Email Auth
 
@@ -90,7 +98,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## Deploy to Vercel
+## 🚢 Deploy to Vercel
 
 ### 1. Push to GitHub
 
@@ -121,57 +129,50 @@ After deployment, update the **Site URL** in Supabase:
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
 ├── app/
-│   ├── globals.css          # Global styles + Tailwind
+│   ├── globals.css          # Global styles + Tailwind UI definitions
 │   ├── layout.tsx           # Root layout
-│   ├── page.tsx             # Redirect to /dashboard
-│   ├── login/page.tsx       # Auth page
-│   ├── dashboard/page.tsx   # Dashboard with stats
-│   ├── jobs/page.tsx        # Jobs table + CRUD
-│   ├── companies/page.tsx   # Companies table + CRUD
-│   ├── boards/page.tsx      # Job boards cards + CRUD
-│   ├── skills/page.tsx      # Skills cards + CRUD
-│   └── auth/callback/route.ts  # Auth callback
+│   ├── login/               # Supabase Auth
+│   ├── dashboard/           # Main stats & tracking dashboard
+│   ├── jobs/                # Jobs table & applications
+│   ├── companies/           # Global & tracked companies
+│   ├── boards/              # Global & tracked job boards
+│   ├── skills/              # Skills gap tracking
+│   ├── profile/             # Candidate Profile UI
+│   ├── profile-database/    # Profile database management
+│   ├── workshop/            # AI document generator workspace
+│   └── api/                 # Backend API routes
 ├── components/
 │   ├── Sidebar.tsx          # Navigation sidebar
-│   ├── LayoutShell.tsx      # Layout wrapper
-│   └── ui/                  # Reusable UI components
-│       ├── Badge.tsx
-│       ├── Button.tsx
-│       ├── ConfirmDialog.tsx
-│       ├── Input.tsx
-│       ├── Combobox.tsx     # Smart auto-complete input
-│       ├── Modal.tsx
-│       ├── Select.tsx
-│       └── Toast.tsx
+│   ├── LayoutShell.tsx      # Main authenticated layout wrapper
+│   ├── QuickNotesPanel.tsx  # Floating notepad component
+│   └── ui/                  # Reusable form & UI components
 ├── lib/
-│   ├── supabase.ts          # Browser Supabase client
-│   ├── supabase-server.ts   # Server Supabase client
-│   └── utils.ts             # Helpers + color mappings
-├── types/
-│   └── database.ts          # TypeScript interfaces
-└── middleware.ts             # Auth middleware
+│   ├── supabase.ts          # Client-side Supabase setup
+│   └── utils.ts             # Formatting & color mappings
+└── types/
+    └── database.ts          # Comprehensive TypeScript schema definitions
 ```
 
 ---
 
-## Tech Stack
+## 💻 Tech Stack
 
-| Layer      | Technology     |
-|------------|----------------|
-| Frontend   | Next.js 14 (App Router) |
-| Styling    | Tailwind CSS 3 |
-| Database   | Supabase (PostgreSQL) |
-| Auth       | Supabase Auth  |
-| Language   | TypeScript 5   |
-| Deployment | Vercel         |
+| Layer      | Technology |
+|------------|------------|
+| **Frontend**   | Next.js 14 (App Router) |
+| **Styling**    | Tailwind CSS 3 |
+| **Database**   | Supabase (PostgreSQL) |
+| **Auth**       | Supabase Auth |
+| **Language**   | TypeScript 5 |
+| **Deployment** | Vercel |
 
 ---
 
-## License
+## 📄 License
 
 MIT
