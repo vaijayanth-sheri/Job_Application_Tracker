@@ -215,38 +215,41 @@ export default function ProfileDatabasePage() {
           
           {/* CORE PROFILE */}
           {activeTab === 'core' && (
-            <form onSubmit={handleSaveCore} className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Professional Summary (Always Loaded)</label>
-                <textarea
-                  rows={4}
-                  className="w-full rounded-xl border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm"
-                  value={core.professional_summary || ''}
-                  onChange={(e) => setCore({...core, professional_summary: e.target.value})}
-                  placeholder="A strong, overarching professional summary..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Career Interests & Domains</label>
-                <textarea
-                  rows={3}
-                  className="w-full rounded-xl border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm"
-                  value={core.career_interests || ''}
-                  onChange={(e) => setCore({...core, career_interests: e.target.value})}
-                  placeholder="e.g. Renewable Energy, Smart Grids, Data Analytics..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Cover Letter Tone & Guidelines</label>
-                <textarea
-                  rows={3}
-                  className="w-full rounded-xl border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm"
-                  value={core.cover_letter_guidelines || ''}
-                  onChange={(e) => setCore({...core, cover_letter_guidelines: e.target.value})}
-                  placeholder="e.g. Keep it concise, 3 paragraphs, highly professional but passionate..."
-                />
-              </div>
-              <div className="flex justify-end">
+            <form onSubmit={handleSaveCore} className="space-y-4">
+              {[
+                { id: 'core-summary', label: 'Professional Summary (Always Loaded)', field: 'professional_summary', placeholder: 'A strong, overarching professional summary...' },
+                { id: 'core-interests', label: 'Career Interests & Domains', field: 'career_interests', placeholder: 'e.g. Renewable Energy, Smart Grids, Data Analytics...' },
+                { id: 'core-cover', label: 'Cover Letter Tone & Guidelines', field: 'cover_letter_guidelines', placeholder: 'e.g. Keep it concise, 3 paragraphs, highly professional but passionate...' }
+              ].map(section => {
+                const isExpanded = expandedItemId === section.id;
+                return (
+                  <div key={section.id} className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 transition-all">
+                    <div 
+                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => toggleExpand(section.id)}
+                    >
+                      <div className="flex-1 font-semibold text-gray-900">
+                        {section.label}
+                      </div>
+                      <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    {isExpanded && (
+                      <div className="p-4 border-t border-gray-200 bg-white">
+                        <textarea
+                          rows={12}
+                          className="w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm"
+                          value={(core as any)[section.field] || ''}
+                          onChange={(e) => setCore({...core, [section.field]: e.target.value})}
+                          placeholder={section.placeholder}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <div className="flex justify-end pt-4">
                 <button type="submit" className="bg-brand-600 text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-brand-700">
                   Save Core Profile
                 </button>
@@ -416,12 +419,12 @@ export default function ProfileDatabasePage() {
                   + Add Skill
                 </button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-col space-y-3">
                 {skills.map(skill => (
-                  <div key={skill.id} className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
-                    <input className="flex-1 rounded-md border-gray-300 text-sm py-1 px-2" value={skill.skill_name} onChange={(e) => updateField('profile_skills', skill.id, 'skill_name', e.target.value, setSkills, skills)} placeholder="Skill" />
-                    <input className="w-24 rounded-md border-gray-300 text-sm py-1 px-2 text-gray-500" value={skill.category || ''} onChange={(e) => updateField('profile_skills', skill.id, 'category', e.target.value, setSkills, skills)} placeholder="Category" />
-                    <button onClick={() => handleDelete('profile_skills', skill.id, setSkills, skills)} className="text-gray-400 hover:text-rose-500">
+                  <div key={skill.id} className="flex items-center space-x-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                    <input className="flex-1 rounded-lg border-gray-300 text-sm font-semibold py-2 px-3" value={skill.skill_name} onChange={(e) => updateField('profile_skills', skill.id, 'skill_name', e.target.value, setSkills, skills)} placeholder="Skill" />
+                    <input className="w-1/3 rounded-lg border-gray-300 text-sm py-2 px-3 text-gray-600" value={skill.category || ''} onChange={(e) => updateField('profile_skills', skill.id, 'category', e.target.value, setSkills, skills)} placeholder="Category (e.g. Languages, Tools...)" />
+                    <button onClick={() => handleDelete('profile_skills', skill.id, setSkills, skills)} className="text-gray-400 hover:text-rose-500 px-2 font-bold text-lg">
                       &times;
                     </button>
                   </div>
