@@ -21,6 +21,11 @@ import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 
+function normalizeUrl(url?: string): string {
+  if (!url) return '';
+  return url.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0].toLowerCase();
+}
+
 const STATUS_OPTIONS = [
   { value: 'wishlist', label: 'Wishlist' },
   { value: 'applied', label: 'Applied' },
@@ -77,6 +82,7 @@ export default function JobsPage() {
   const [smartMode, setSmartMode] = useState(false);
   const [jobDescription, setJobDescription] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingStatus, setAnalyzingStatus] = useState('');
   const [smartCompanyData, setSmartCompanyData] = useState<{sector: string, website_link: string} | null>(null);
 
   // Company linking state
@@ -87,6 +93,15 @@ export default function JobsPage() {
     sector: '', website_link: '', location: '', interest_level: 3, notes: ''
   });
   const [savingCompany, setSavingCompany] = useState(false);
+
+  // Duplicate Company Prompt State
+  const [duplicatePromptData, setDuplicatePromptData] = useState<{
+    jobId: string;
+    companyId: string;
+    companyName: string;
+    reason: string;
+    newCompanyData: Partial<CompanyFormData>;
+  } | null>(null);
 
   const supabase = createClient();
   const { addToast } = useToast();
@@ -215,35 +230,84 @@ export default function JobsPage() {
         savedJobId = insertedJob.id;
         addToast('Job added successfully');
       }
-      setModalOpen(false);
-      
       // Auto-link or prompt for company
       if (form.company && savedJobId) {
-        const { data: existingCompany } = await supabase
-          .from('companies')
-          .select('id')
-          .ilike('company_name', form.company)
-          .maybeSingle();
+        const { data: allCompanies } = await supabase.from('companies').select('id, company_name, website_link');
+        
+        let foundCompanyId: string | null = null;
+        let duplicateReason = '';
+        let duplicateName = '';
 
-        let userCompanyExists = false;
-        let globalCompanyId = existingCompany?.id;
+        if (allCompanies) {
+          const targetName = form.company.toLowerCase();
+          const targetUrl = smartCompanyData?.website_link ? normalizeUrl(smartCompanyData.website_link) : '';
 
-        if (globalCompanyId) {
+          for (const c of allCompanies) {
+            const existingName = c.company_name.toLowerCase();
+            const existingUrl = normalizeUrl(c.website_link);
+
+            // 1. Exact Website Link Match
+            if (targetUrl && existingUrl && targetUrl === existingUrl) {
+              foundCompanyId = c.id;
+              duplicateReason = 'exact website link match';
+              duplicateName = c.company_name;
+              break;
+            }
+
+            // 2. Fuzzy Link + Partial Name Match
+            if (targetUrl && existingUrl && (targetUrl.includes(existingUrl) || existingUrl.includes(targetUrl))) {
+              if (existingName.includes(targetName) || targetName.includes(existingName)) {
+                foundCompanyId = c.id;
+                duplicateReason = 'similar website link and partial name match';
+                duplicateName = c.company_name;
+                break;
+              }
+            }
+
+            // 3. Fallback: Exact Name Match
+            if (existingName === targetName) {
+              foundCompanyId = c.id;
+              duplicateReason = 'exact name match';
+              duplicateName = c.company_name;
+              // Don't break here, keep searching for a URL match just in case
+            }
+          }
+        }
+
+        if (foundCompanyId) {
+          // If we found a duplicate, check if user already has it in user_companies
           const { data: userCompany } = await supabase
             .from('user_companies')
             .select('id')
-            .eq('company_id', globalCompanyId)
+            .eq('company_id', foundCompanyId)
             .eq('user_id', user.id)
             .maybeSingle();
-          if (userCompany) userCompanyExists = true;
-        }
 
-        if (userCompanyExists && globalCompanyId) {
-          // Link it automatically
-          await supabase.from('jobs').update({ company_id: globalCompanyId }).eq('id', savedJobId);
+          // If the reason was URL or Fuzzy matching (not exact name), or if we just want to prompt before adding ANY new company...
+          // The instruction: "when such duplicates are found, prompt user before adding."
+          if (duplicateReason !== 'exact name match' || !userCompany) {
+            setDuplicatePromptData({
+              jobId: savedJobId,
+              companyId: foundCompanyId,
+              companyName: duplicateName,
+              reason: duplicateReason,
+              newCompanyData: {
+                company_name: form.company,
+                sector: smartCompanyData?.sector || '',
+                website_link: smartCompanyData?.website_link || '',
+                location: form.location || '',
+                interest_level: 3,
+                notes: ''
+              }
+            });
+            return; // Stop the flow and wait for user interaction
+          }
+
+          // If exact name match AND already linked to user, just auto-link the job silently
+          await supabase.from('jobs').update({ company_id: foundCompanyId }).eq('id', savedJobId);
           fetchJobs();
         } else {
-          // Trigger company save modal
+          // No duplicate found, trigger normal company save modal
           setPendingJobId(savedJobId);
           setPendingCompanyName(form.company);
           setCompanyForm({
@@ -272,29 +336,18 @@ export default function JobsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      let globalCompanyId;
-      const { data: existingCompany } = await supabase
+      const globalCompanyId = crypto.randomUUID();
+      const { error } = await supabase
         .from('companies')
-        .select('id')
-        .ilike('company_name', pendingCompanyName)
-        .maybeSingle();
-
-      if (existingCompany) {
-        globalCompanyId = existingCompany.id;
-      } else {
-        globalCompanyId = crypto.randomUUID();
-        const { error } = await supabase
-          .from('companies')
-          .insert({
-            id: globalCompanyId,
-            company_name: pendingCompanyName,
-            sector: companyForm.sector,
-            website_link: companyForm.website_link,
-            location: companyForm.location,
-            is_global: false,
-          });
-        if (error) throw error;
-      }
+        .insert({
+          id: globalCompanyId,
+          company_name: pendingCompanyName,
+          sector: companyForm.sector,
+          website_link: companyForm.website_link,
+          location: companyForm.location,
+          is_global: false,
+        });
+      if (error) throw error;
 
       const { error: ucError } = await supabase
         .from('user_companies')
@@ -317,6 +370,54 @@ export default function JobsPage() {
       addToast(err.message || 'Failed to save company', 'error');
     } finally {
       setSavingCompany(false);
+    }
+  };
+
+  const handleDuplicateResolve = async (action: 'link' | 'create_new') => {
+    if (!duplicatePromptData) return;
+    
+    if (action === 'link') {
+      try {
+        await supabase.from('jobs').update({ company_id: duplicatePromptData.companyId }).eq('id', duplicatePromptData.jobId);
+        
+        // Ensure user is tracking this company since they chose to link to it
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: existingUc } = await supabase
+            .from('user_companies')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('company_id', duplicatePromptData.companyId)
+            .maybeSingle();
+            
+          if (!existingUc) {
+            await supabase.from('user_companies').insert({
+              user_id: user.id,
+              company_id: duplicatePromptData.companyId,
+              interest_level: 3,
+              notes: ''
+            });
+          }
+        }
+        addToast('Linked to existing company successfully');
+        setDuplicatePromptData(null);
+        fetchJobs();
+      } catch (err: any) {
+        addToast('Failed to link company: ' + err.message, 'error');
+      }
+    } else if (action === 'create_new') {
+      // User explicitly wants a new duplicate entry
+      setPendingJobId(duplicatePromptData.jobId);
+      setPendingCompanyName(duplicatePromptData.newCompanyData.company_name || '');
+      setCompanyForm({
+        sector: duplicatePromptData.newCompanyData.sector || '',
+        website_link: duplicatePromptData.newCompanyData.website_link || '',
+        location: duplicatePromptData.newCompanyData.location || '',
+        interest_level: 3,
+        notes: ''
+      });
+      setDuplicatePromptData(null);
+      setCompanyModalOpen(true);
     }
   };
 
@@ -354,11 +455,31 @@ export default function JobsPage() {
 
   const handleAnalyze = async () => {
     if (!jobDescription.trim()) {
-      addToast('Please enter a job description', 'error');
+      addToast('Please enter a job description or URL', 'error');
       return;
     }
     setAnalyzing(true);
+    setAnalyzingStatus('Analyzing input...');
     try {
+      let textToAnalyze = jobDescription;
+      const isUrl = /^https?:\/\//i.test(jobDescription.trim());
+      
+      if (isUrl) {
+        setAnalyzingStatus('Reading URL and scraping web...');
+        const scrapeRes = await fetch('/api/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: jobDescription.trim() })
+        });
+        if (!scrapeRes.ok) {
+          const errData = await scrapeRes.json();
+          throw new Error(errData.error || 'Failed to scrape URL');
+        }
+        const scrapeData = await scrapeRes.json();
+        textToAnalyze = scrapeData.text;
+        setAnalyzingStatus('Extracting JD...');
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
 
       // Fetch profile from the frontend (has auth session, bypasses RLS)
@@ -372,7 +493,7 @@ export default function JobsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          jobDescription, 
+          jobDescription: textToAnalyze, 
           userId: user?.id,
           resumeText: profileData?.resume_text || ''
         })
@@ -406,9 +527,11 @@ export default function JobsPage() {
         website_link: data.company_website || ''
       });
       setSmartMode(false);
+      setAnalyzingStatus('');
       addToast('Job details extracted successfully');
     } catch (err: any) {
       addToast(err.message || 'Analysis failed', 'error');
+      setAnalyzingStatus('');
     } finally {
       setAnalyzing(false);
     }
@@ -639,16 +762,19 @@ export default function JobsPage() {
         {smartMode ? (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-700">Paste Job Description</label>
+              <label className="block text-sm font-medium text-gray-700">Paste Job Description or URL</label>
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 rows={10}
-                placeholder="Paste the full job description here..."
+                placeholder="Paste a URL (https://...) or the full job description text here..."
                 className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
               />
             </div>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-sm font-medium text-brand-600 animate-pulse">
+                {analyzingStatus}
+              </span>
               <Button type="button" onClick={handleAnalyze} loading={analyzing}>
                 ✨ Analyze with AI
               </Button>
@@ -799,6 +925,35 @@ export default function JobsPage() {
         message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
         loading={deleting}
       />
+
+      {/* Duplicate Company Confirm Modal */}
+      <Modal
+        isOpen={!!duplicatePromptData}
+        onClose={() => setDuplicatePromptData(null)}
+        title="Similar Company Found"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            We found a similar company in the database based on a <strong>{duplicatePromptData?.reason}</strong>.
+          </p>
+          <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <p className="text-sm">Existing Company: <strong>{duplicatePromptData?.companyName}</strong></p>
+            <p className="text-sm mt-1">You Typed: <strong>{duplicatePromptData?.newCompanyData.company_name}</strong></p>
+          </div>
+          <p className="text-sm text-gray-700">
+            Would you like to link this job to the existing company, or create a brand new entry?
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4">
+            <Button variant="secondary" onClick={() => handleDuplicateResolve('create_new')}>
+              Create New
+            </Button>
+            <Button onClick={() => handleDuplicateResolve('link')}>
+              Link to Existing
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

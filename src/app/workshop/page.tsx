@@ -16,6 +16,7 @@ export default function AIWorkshopPage() {
   
   const [completion, setCompletion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [scrapingStatus, setScrapingStatus] = useState('');
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -60,13 +61,33 @@ export default function AIWorkshopPage() {
     setIsLoading(true);
     setCompletion('');
     setError(null);
+    setScrapingStatus('');
 
     try {
+      let textToAnalyze = jobDescription;
+      const isUrl = /^https?:\/\//i.test(jobDescription.trim());
+      
+      if (isUrl) {
+        setScrapingStatus('Reading URL and scraping web...');
+        const scrapeRes = await fetch('/api/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: jobDescription.trim() })
+        });
+        if (!scrapeRes.ok) {
+          const errData = await scrapeRes.json();
+          throw new Error(errData.error || 'Failed to scrape URL');
+        }
+        const scrapeData = await scrapeRes.json();
+        textToAnalyze = scrapeData.text;
+        setScrapingStatus('Analyzing candidate database...');
+      }
+
       const res = await fetch('/api/ai-workshop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          jobDescription: jobDescription,
+          jobDescription: textToAnalyze,
         })
       });
 
@@ -101,6 +122,7 @@ export default function AIWorkshopPage() {
       addToast(err.message || "Failed to generate.", 'error');
     } finally {
       setIsLoading(false);
+      setScrapingStatus('');
     }
   };
 
@@ -144,19 +166,22 @@ export default function AIWorkshopPage() {
 
           <div>
             <label htmlFor="jd" className="block text-sm font-semibold text-gray-900 mb-2">
-              Job Description
+              Job Description or URL
             </label>
             <textarea
               id="jd"
               rows={8}
               className="w-full rounded-xl border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm"
-              placeholder="Paste the full job description here..."
+              placeholder="Paste a URL (https://...) or the full job description text here..."
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
             />
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-brand-600 animate-pulse">
+              {scrapingStatus}
+            </span>
             <button
               onClick={handleGenerate}
               disabled={isLoading || !jobDescription.trim()}
@@ -203,7 +228,7 @@ export default function AIWorkshopPage() {
             {isLoading && !completion && (
               <div className="flex flex-col items-center justify-center h-48 space-y-4 text-brand-600">
                 <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-sm font-medium animate-pulse">Analyzing candidate database and extracting evidence...</p>
+                <p className="text-sm font-medium animate-pulse">{scrapingStatus || 'Analyzing candidate database and extracting evidence...'}</p>
               </div>
             )}
             <div className="prose prose-brand max-w-none text-gray-800 text-sm whitespace-pre-wrap font-mono">
