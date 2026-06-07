@@ -17,7 +17,12 @@ type Tab = 'core' | 'experience' | 'projects' | 'education' | 'skills';
 export default function ProfileDatabasePage() {
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('core');
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const toggleExpand = (id: string) => {
+    setExpandedItemId(prev => prev === id ? null : id);
+  };
 
   // States
   const [core, setCore] = useState<Partial<ProfileCore>>({ professional_summary: '', career_interests: '', cover_letter_guidelines: '' });
@@ -107,7 +112,10 @@ export default function ProfileDatabasePage() {
       business_relevance: '',
       transferable_value: ''
     }).select().single();
-    if (data) setProjects([data, ...projects]);
+    if (data) {
+      setProjects([data, ...projects]);
+      setExpandedItemId(data.id);
+    }
   };
 
   const addExperience = async () => {
@@ -122,7 +130,10 @@ export default function ProfileDatabasePage() {
       end_date: 'Present',
       description: 'Responsibilities and achievements...'
     }).select().single();
-    if (data) setExperiences([data, ...experiences]);
+    if (data) {
+      setExperiences([data, ...experiences]);
+      setExpandedItemId(data.id);
+    }
   };
 
   const addEducation = async () => {
@@ -135,7 +146,10 @@ export default function ProfileDatabasePage() {
       degree: 'Degree',
       field_of_study: 'Field'
     }).select().single();
-    if (data) setEducation([data, ...education]);
+    if (data) {
+      setEducation([data, ...education]);
+      setExpandedItemId(data.id);
+    }
   };
 
   const addSkill = async () => {
@@ -248,18 +262,42 @@ export default function ProfileDatabasePage() {
                   + Add Experience
                 </button>
               </div>
-              {experiences.map(exp => (
-                <div key={exp.id} className="p-4 border border-gray-200 rounded-xl space-y-4 bg-gray-50 relative">
-                  <button onClick={() => handleDelete('profile_experiences', exp.id, setExperiences, experiences)} className="absolute top-4 right-4 text-rose-500 hover:text-rose-700 text-sm">Delete</button>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input className="rounded-lg border-gray-300 text-sm font-semibold" value={exp.title} onChange={(e) => updateField('profile_experiences', exp.id, 'title', e.target.value, setExperiences, experiences)} placeholder="Job Title" />
-                    <input className="rounded-lg border-gray-300 text-sm" value={exp.company} onChange={(e) => updateField('profile_experiences', exp.id, 'company', e.target.value, setExperiences, experiences)} placeholder="Company" />
-                    <input className="rounded-lg border-gray-300 text-sm" value={exp.start_date || ''} onChange={(e) => updateField('profile_experiences', exp.id, 'start_date', e.target.value, setExperiences, experiences)} placeholder="Start Date" />
-                    <input className="rounded-lg border-gray-300 text-sm" value={exp.end_date || ''} onChange={(e) => updateField('profile_experiences', exp.id, 'end_date', e.target.value, setExperiences, experiences)} placeholder="End Date" />
+              {experiences.map(exp => {
+                const isExpanded = expandedItemId === exp.id;
+                return (
+                <div key={exp.id} className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 transition-all">
+                  <div 
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => toggleExpand(exp.id)}
+                  >
+                    <div className="flex-1 font-semibold text-gray-900">
+                      {exp.title} {exp.company ? `at ${exp.company}` : ''}
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete('profile_experiences', exp.id, setExperiences, experiences); }} 
+                        className="text-rose-500 hover:text-rose-700 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
+                      <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
                   </div>
-                  <textarea rows={4} className="w-full rounded-lg border-gray-300 text-sm" value={exp.description || ''} onChange={(e) => updateField('profile_experiences', exp.id, 'description', e.target.value, setExperiences, experiences)} placeholder="Describe responsibilities and achievements. The AI will extract 3 tailored bullets from this." />
+                  {isExpanded && (
+                    <div className="p-4 border-t border-gray-200 space-y-4 bg-white">
+                      <div className="grid grid-cols-2 gap-4">
+                        <input className="rounded-lg border-gray-300 text-sm font-semibold" value={exp.title} onChange={(e) => updateField('profile_experiences', exp.id, 'title', e.target.value, setExperiences, experiences)} placeholder="Job Title" />
+                        <input className="rounded-lg border-gray-300 text-sm" value={exp.company} onChange={(e) => updateField('profile_experiences', exp.id, 'company', e.target.value, setExperiences, experiences)} placeholder="Company" />
+                        <input className="rounded-lg border-gray-300 text-sm" value={exp.start_date || ''} onChange={(e) => updateField('profile_experiences', exp.id, 'start_date', e.target.value, setExperiences, experiences)} placeholder="Start Date" />
+                        <input className="rounded-lg border-gray-300 text-sm" value={exp.end_date || ''} onChange={(e) => updateField('profile_experiences', exp.id, 'end_date', e.target.value, setExperiences, experiences)} placeholder="End Date" />
+                      </div>
+                      <textarea rows={8} className="w-full rounded-lg border-gray-300 text-sm" value={exp.description || ''} onChange={(e) => updateField('profile_experiences', exp.id, 'description', e.target.value, setExperiences, experiences)} placeholder="Describe responsibilities and achievements. The AI will extract 3 tailored bullets from this." />
+                    </div>
+                  )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
 
@@ -272,29 +310,51 @@ export default function ProfileDatabasePage() {
                   + Add Project
                 </button>
               </div>
-              {projects.map(proj => (
-                <div key={proj.id} className="p-4 border border-gray-200 rounded-xl space-y-4 bg-gray-50 relative">
-                  <button onClick={() => handleDelete('profile_projects', proj.id, setProjects, projects)} className="absolute top-4 right-4 text-rose-500 hover:text-rose-700 text-sm">Delete</button>
-                  <input className="w-full rounded-lg border-gray-300 text-sm font-semibold" value={proj.name} onChange={(e) => updateField('profile_projects', proj.id, 'name', e.target.value, setProjects, projects)} placeholder="Project Name" />
-                  
-                  <textarea rows={3} className="w-full rounded-lg border-gray-300 text-sm" value={proj.description} onChange={(e) => updateField('profile_projects', proj.id, 'description', e.target.value, setProjects, projects)} placeholder="Project Description (What did you do?)" />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-xs text-gray-500 font-semibold uppercase">Technologies Used</label>
-                      <input className="w-full rounded-lg border-gray-300 text-sm mt-1" value={proj.technologies_used || ''} onChange={(e) => updateField('profile_projects', proj.id, 'technologies_used', e.target.value, setProjects, projects)} placeholder="Python, React..." />
+              {projects.map(proj => {
+                const isExpanded = expandedItemId === proj.id;
+                return (
+                <div key={proj.id} className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 transition-all">
+                  <div 
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => toggleExpand(proj.id)}
+                  >
+                    <div className="flex-1 font-semibold text-gray-900">
+                      {proj.name || 'Unnamed Project'}
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-500 font-semibold uppercase">Business Relevance</label>
-                      <input className="w-full rounded-lg border-gray-300 text-sm mt-1" value={proj.business_relevance || ''} onChange={(e) => updateField('profile_projects', proj.id, 'business_relevance', e.target.value, setProjects, projects)} placeholder="Why did this matter?" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 font-semibold uppercase">Transferable Value</label>
-                      <input className="w-full rounded-lg border-gray-300 text-sm mt-1" value={proj.transferable_value || ''} onChange={(e) => updateField('profile_projects', proj.id, 'transferable_value', e.target.value, setProjects, projects)} placeholder="What did you learn?" />
+                    <div className="flex items-center space-x-4">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete('profile_projects', proj.id, setProjects, projects); }} 
+                        className="text-rose-500 hover:text-rose-700 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
+                      <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
                   </div>
+                  {isExpanded && (
+                    <div className="p-4 border-t border-gray-200 space-y-4 bg-white">
+                      <input className="w-full rounded-lg border-gray-300 text-sm font-semibold" value={proj.name} onChange={(e) => updateField('profile_projects', proj.id, 'name', e.target.value, setProjects, projects)} placeholder="Project Name" />
+                      <textarea rows={6} className="w-full rounded-lg border-gray-300 text-sm" value={proj.description} onChange={(e) => updateField('profile_projects', proj.id, 'description', e.target.value, setProjects, projects)} placeholder="Project Description (What did you do?)" />
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-xs text-gray-500 font-semibold uppercase">Technologies Used</label>
+                          <textarea rows={3} className="w-full rounded-lg border-gray-300 text-sm mt-1" value={proj.technologies_used || ''} onChange={(e) => updateField('profile_projects', proj.id, 'technologies_used', e.target.value, setProjects, projects)} placeholder="Python, React..." />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 font-semibold uppercase">Business Relevance</label>
+                          <textarea rows={3} className="w-full rounded-lg border-gray-300 text-sm mt-1" value={proj.business_relevance || ''} onChange={(e) => updateField('profile_projects', proj.id, 'business_relevance', e.target.value, setProjects, projects)} placeholder="Why did this matter?" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 font-semibold uppercase">Transferable Value</label>
+                          <textarea rows={3} className="w-full rounded-lg border-gray-300 text-sm mt-1" value={proj.transferable_value || ''} onChange={(e) => updateField('profile_projects', proj.id, 'transferable_value', e.target.value, setProjects, projects)} placeholder="What did you learn?" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
 
@@ -306,20 +366,44 @@ export default function ProfileDatabasePage() {
                   + Add Education
                 </button>
               </div>
-              {education.map(edu => (
-                <div key={edu.id} className="p-4 border border-gray-200 rounded-xl space-y-4 bg-gray-50 relative">
-                  <button onClick={() => handleDelete('profile_education', edu.id, setEducation, education)} className="absolute top-4 right-4 text-rose-500 hover:text-rose-700 text-sm">Delete</button>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input className="rounded-lg border-gray-300 text-sm font-semibold" value={edu.institution} onChange={(e) => updateField('profile_education', edu.id, 'institution', e.target.value, setEducation, education)} placeholder="Institution" />
-                    <input className="rounded-lg border-gray-300 text-sm" value={edu.degree} onChange={(e) => updateField('profile_education', edu.id, 'degree', e.target.value, setEducation, education)} placeholder="Degree/Certificate" />
-                    <input className="rounded-lg border-gray-300 text-sm" value={edu.field_of_study || ''} onChange={(e) => updateField('profile_education', edu.id, 'field_of_study', e.target.value, setEducation, education)} placeholder="Field of Study" />
-                    <div className="flex space-x-2">
-                      <input className="w-full rounded-lg border-gray-300 text-sm" value={edu.start_date || ''} onChange={(e) => updateField('profile_education', edu.id, 'start_date', e.target.value, setEducation, education)} placeholder="Start Year" />
-                      <input className="w-full rounded-lg border-gray-300 text-sm" value={edu.end_date || ''} onChange={(e) => updateField('profile_education', edu.id, 'end_date', e.target.value, setEducation, education)} placeholder="End Year" />
+              {education.map(edu => {
+                const isExpanded = expandedItemId === edu.id;
+                return (
+                <div key={edu.id} className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 transition-all">
+                  <div 
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => toggleExpand(edu.id)}
+                  >
+                    <div className="flex-1 font-semibold text-gray-900">
+                      {edu.degree} at {edu.institution}
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete('profile_education', edu.id, setEducation, education); }} 
+                        className="text-rose-500 hover:text-rose-700 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
+                      <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
                   </div>
+                  {isExpanded && (
+                    <div className="p-4 border-t border-gray-200 space-y-4 bg-white">
+                      <div className="grid grid-cols-2 gap-4">
+                        <input className="rounded-lg border-gray-300 text-sm font-semibold" value={edu.institution} onChange={(e) => updateField('profile_education', edu.id, 'institution', e.target.value, setEducation, education)} placeholder="Institution" />
+                        <input className="rounded-lg border-gray-300 text-sm" value={edu.degree} onChange={(e) => updateField('profile_education', edu.id, 'degree', e.target.value, setEducation, education)} placeholder="Degree/Certificate" />
+                        <input className="rounded-lg border-gray-300 text-sm" value={edu.field_of_study || ''} onChange={(e) => updateField('profile_education', edu.id, 'field_of_study', e.target.value, setEducation, education)} placeholder="Field of Study" />
+                        <div className="flex space-x-2">
+                          <input className="w-full rounded-lg border-gray-300 text-sm" value={edu.start_date || ''} onChange={(e) => updateField('profile_education', edu.id, 'start_date', e.target.value, setEducation, education)} placeholder="Start Year" />
+                          <input className="w-full rounded-lg border-gray-300 text-sm" value={edu.end_date || ''} onChange={(e) => updateField('profile_education', edu.id, 'end_date', e.target.value, setEducation, education)} placeholder="End Year" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
 
