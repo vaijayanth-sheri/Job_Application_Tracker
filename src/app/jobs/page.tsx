@@ -236,6 +236,9 @@ export default function JobsPage() {
         savedJobId = insertedJob.id;
         addToast('Job added successfully');
       }
+      
+      setModalOpen(false);
+
       // Auto-link or prompt for company
       if (form.company && savedJobId) {
         const { data: allCompanies } = await supabase.from('companies').select('id, company_name, website_link');
