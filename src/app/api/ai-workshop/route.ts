@@ -105,6 +105,8 @@ If evidence does not exist, omit the information.
 Do NOT invent responsibilities, metrics, or achievements.
 Prioritize relevance over keyword matching.
 
+CRITICAL GUARDRAIL: Analyze the JOB DESCRIPTION text carefully. If the text appears to be a generic company homepage, an article, or is clearly NOT a specific job posting, you MUST output EXACTLY the phrase: "ERROR: NOT_A_JOB_POSTING" and nothing else. Do not generate the 5 sections. Every request is independent.
+
 OUTPUT FORMAT:
 You must output EXACTLY these 5 sections in order. Use Markdown headers for the sections.
 

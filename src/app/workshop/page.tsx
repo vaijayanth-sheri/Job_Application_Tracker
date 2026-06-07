@@ -25,6 +25,23 @@ export default function AIWorkshopPage() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (selectedJobId) {
+      const job = jobs.find(j => j.id === selectedJobId);
+      if (job) {
+        if (job.job_description) {
+          setJobDescription(job.job_description);
+        } else if (job.job_link) {
+          setJobDescription(job.job_link);
+        } else {
+          setJobDescription('');
+        }
+      }
+    } else {
+      setJobDescription('');
+    }
+  }, [selectedJobId, jobs]);
+
   const fetchData = async () => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -117,6 +134,11 @@ export default function AIWorkshopPage() {
         done = doneReading;
         if (value) {
           text += decoder.decode(value, { stream: true });
+          
+          if (text.includes('NOT_A_JOB_POSTING')) {
+            throw new Error('The provided link or text does not appear to be a specific job description. Please provide a direct link to a job posting.');
+          }
+
           setCompletion(text);
         }
       }

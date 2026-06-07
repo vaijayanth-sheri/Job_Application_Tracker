@@ -45,6 +45,7 @@ Rules:
 - "interest_level" is an integer from 1 to 5 estimating how interesting this role would be for the user.
 - Extract the job title, company name, location, and website directly from the job description.
 - If the sector or website is not in the job description, you may use your internal knowledge to infer them based on the company name.
+- CRITICAL GUARDRAIL: Analyze the JOB DESCRIPTION text carefully. If the text appears to be a generic company homepage, an article, or is clearly NOT a specific job posting, you MUST return EXACTLY this JSON: { "error": "NOT_A_JOB_POSTING" }. Do NOT invent or hallucinate a job title or requirements. Every search is independent.
     `;
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
@@ -79,6 +80,10 @@ Rules:
     } catch (e) {
       console.error("Failed to parse Gemini JSON:", rawText);
       return NextResponse.json({ error: 'AI returned invalid format.' }, { status: 500 });
+    }
+
+    if (parsedResult.error === 'NOT_A_JOB_POSTING') {
+      return NextResponse.json({ error: 'The provided link or text does not appear to be a specific job description. Please provide a direct link to a job posting.' }, { status: 400 });
     }
 
     // Combine match_reasoning into notes

@@ -81,6 +81,7 @@ export default function JobsPage() {
   // Smart Add state
   const [smartMode, setSmartMode] = useState(false);
   const [jobDescription, setJobDescription] = useState('');
+  const [scrapedDescription, setScrapedDescription] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingStatus, setAnalyzingStatus] = useState('');
   const [analyzingError, setAnalyzingError] = useState(false);
@@ -170,6 +171,7 @@ export default function JobsPage() {
     setForm(EMPTY_FORM);
     setSmartMode(false);
     setJobDescription('');
+    setScrapedDescription('');
     setModalOpen(true);
   };
 
@@ -178,6 +180,7 @@ export default function JobsPage() {
     setForm({ ...EMPTY_FORM, applied_date: '' });
     setSmartMode(true);
     setJobDescription('');
+    setScrapedDescription('');
     setModalOpen(true);
   };
 
@@ -195,6 +198,7 @@ export default function JobsPage() {
       job_link: job.job_link,
       notes: job.notes,
     });
+    setScrapedDescription(job.job_description || '');
     setModalOpen(true);
   };
 
@@ -210,6 +214,7 @@ export default function JobsPage() {
       const payload = {
         ...form,
         applied_date: form.applied_date || null,
+        job_description: scrapedDescription || null,
       };
 
       let savedJobId = editingJob?.id;
@@ -481,6 +486,7 @@ export default function JobsPage() {
         textToAnalyze = scrapeData.text;
         setAnalyzingStatus('Extracting JD...');
       }
+      setScrapedDescription(textToAnalyze);
 
       const { data: { user } } = await supabase.auth.getUser();
 
