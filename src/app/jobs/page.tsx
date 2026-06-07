@@ -83,6 +83,7 @@ export default function JobsPage() {
   const [jobDescription, setJobDescription] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingStatus, setAnalyzingStatus] = useState('');
+  const [analyzingError, setAnalyzingError] = useState(false);
   const [smartCompanyData, setSmartCompanyData] = useState<{sector: string, website_link: string} | null>(null);
 
   // Company linking state
@@ -459,6 +460,7 @@ export default function JobsPage() {
       return;
     }
     setAnalyzing(true);
+    setAnalyzingError(false);
     setAnalyzingStatus('Analyzing input...');
     try {
       let textToAnalyze = jobDescription;
@@ -519,6 +521,7 @@ export default function JobsPage() {
         location: data.location || prev.location,
         relevancy: typeof data.relevancy === 'number' ? data.relevancy : prev.relevancy,
         interest_level: typeof data.interest_level === 'number' ? data.interest_level : prev.interest_level,
+        job_link: isUrl ? jobDescription.trim() : prev.job_link,
         notes: data.notes || prev.notes,
         // applied_date, status, and other fields are intentionally left untouched
       }));
@@ -530,8 +533,9 @@ export default function JobsPage() {
       setAnalyzingStatus('');
       addToast('Job details extracted successfully');
     } catch (err: any) {
-      addToast(err.message || 'Analysis failed', 'error');
-      setAnalyzingStatus('');
+      setAnalyzingError(true);
+      setAnalyzingStatus(err.message || 'Analysis failed');
+      // No toast so the user focuses on the inline error
     } finally {
       setAnalyzing(false);
     }
@@ -772,7 +776,7 @@ export default function JobsPage() {
               />
             </div>
             <div className="flex justify-between items-center pt-2">
-              <span className="text-sm font-medium text-brand-600 animate-pulse">
+              <span className={cn("text-sm font-medium", analyzingError ? "text-red-600" : "text-brand-600 animate-pulse")}>
                 {analyzingStatus}
               </span>
               <Button type="button" onClick={handleAnalyze} loading={analyzing}>

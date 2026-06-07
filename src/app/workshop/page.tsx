@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase';
 import { Job, AISettings } from '@/types/database';
 import LayoutShell from '@/components/LayoutShell';
 import { useToast } from '@/components/ui/Toast';
+import { cn } from '@/lib/utils';
 
 export default function AIWorkshopPage() {
   const { addToast } = useToast();
@@ -17,6 +18,7 @@ export default function AIWorkshopPage() {
   const [completion, setCompletion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [scrapingStatus, setScrapingStatus] = useState('');
+  const [scrapingError, setScrapingError] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function AIWorkshopPage() {
     setIsLoading(true);
     setCompletion('');
     setError(null);
+    setScrapingError(false);
     setScrapingStatus('');
 
     try {
@@ -118,11 +121,10 @@ export default function AIWorkshopPage() {
         }
       }
     } catch (err: any) {
-      setError(err);
-      addToast(err.message || "Failed to generate.", 'error');
+      setScrapingError(true);
+      setScrapingStatus(err.message || "Failed to generate.");
     } finally {
       setIsLoading(false);
-      setScrapingStatus('');
     }
   };
 
@@ -179,7 +181,7 @@ export default function AIWorkshopPage() {
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-brand-600 animate-pulse">
+            <span className={cn("text-sm font-medium", scrapingError ? "text-red-600" : "text-brand-600 animate-pulse")}>
               {scrapingStatus}
             </span>
             <button
