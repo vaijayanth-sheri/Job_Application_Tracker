@@ -56,6 +56,11 @@ export default function CompaniesPage() {
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
+  const [smartMode, setSmartMode] = useState(false);
+  const [companyInput, setCompanyInput] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingStatus, setAnalyzingStatus] = useState('');
+  const [analyzingError, setAnalyzingError] = useState(false);
   const [editingMyCompany, setEditingMyCompany] = useState<CompanyDisplay | null>(null);
   const [editingGlobalCompany, setEditingGlobalCompany] = useState<Company | null>(null);
   const [form, setForm] = useState<CompanyFormData>(EMPTY_FORM);
@@ -204,6 +209,17 @@ export default function CompaniesPage() {
     setEditingMyCompany(null);
     setEditingGlobalCompany(null);
     setForm(EMPTY_FORM);
+    setSmartMode(false);
+    setCompanyInput('');
+    setModalOpen(true);
+  };
+
+  const openSmartAdd = () => {
+    setEditingMyCompany(null);
+    setEditingGlobalCompany(null);
+    setForm(EMPTY_FORM);
+    setSmartMode(true);
+    setCompanyInput('');
     setModalOpen(true);
   };
 
@@ -371,6 +387,65 @@ export default function CompaniesPage() {
     }
   };
 
+  const handleAnalyze = async () => {
+    if (!companyInput.trim()) {
+      addToast('Please enter a company name or URL', 'error');
+      return;
+    }
+    setAnalyzing(true);
+    setAnalyzingError(false);
+    setAnalyzingStatus('Analyzing input...');
+    try {
+      let textToAnalyze = companyInput;
+      const isUrl = /^https?:\/\//i.test(companyInput.trim());
+      
+      if (isUrl) {
+        setAnalyzingStatus('Scraping website...');
+        const scrapeRes = await fetch('/api/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: companyInput.trim() })
+        });
+        if (scrapeRes.ok) {
+          const scrapeData = await scrapeRes.json();
+          textToAnalyze = `URL: ${companyInput.trim()}\n\nContent:\n${scrapeData.text}`;
+        }
+      }
+
+      setAnalyzingStatus('Extracting & Searching data...');
+      
+      const res = await fetch('/api/smart-add-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyInput: textToAnalyze })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to analyze company');
+      }
+
+      const data = await res.json();
+      
+      setForm({
+        ...EMPTY_FORM,
+        company_name: data.company_name || '',
+        sector: data.sector || '',
+        location: data.location || '',
+        website_link: data.website_link || (isUrl ? companyInput.trim() : ''),
+        is_global: data.is_global !== undefined ? data.is_global : true,
+      });
+
+      setSmartMode(false);
+      addToast('Company data extracted. Please verify and save.', 'success');
+    } catch (err: any) {
+      setAnalyzingError(true);
+      setAnalyzingStatus(err.message || 'Analysis failed. Please try manually.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -425,7 +500,28 @@ export default function CompaniesPage() {
     );
   }
 
-  // Check if editing a global company (locks name in UI)
+  const handleLinkClick = async (company: any) => {
+    if (!company.user_company_id) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Optimistic UI update for My List
+    setMyCompanies(prev => prev.map(c => 
+      c.user_company_id === company.user_company_id 
+        ? { ...c, last_reviewed: today } 
+        : c
+    ));
+
+    try {
+      await supabase
+        .from('user_companies')
+        .update({ last_reviewed: today })
+        .eq('id', company.user_company_id);
+    } catch (err) {
+      console.error('Failed to auto-update last reviewed date', err);
+    }
+  };
+
   const isEditingGlobal = Boolean(editingGlobalCompany) || Boolean(editingMyCompany?.is_global);
 
   return (
@@ -467,7 +563,13 @@ export default function CompaniesPage() {
             </button>
           </div>
         </div>
-        <div className="self-end sm:self-auto pb-1">
+        <div className="self-end sm:self-auto flex items-center gap-2 pb-1">
+          <Button onClick={openSmartAdd} variant="secondary" size="md">
+            <svg className="w-4 h-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Smart Add
+          </Button>
           <Button onClick={openCreate} size="md">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -586,7 +688,15 @@ export default function CompaniesPage() {
                         <td className="text-gray-600 text-sm">{company.linkedin_connections || '—'}</td>
                         <td>
                         {company.website_link ? (
-                          <a href={formatUrl(company.website_link)} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
+                          <a 
+                            href={formatUrl(company.website_link)} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-brand-600 hover:text-brand-700 text-xs font-medium"
+                            onClick={() => handleLinkClick(company)}
+                          >
+                            Open ↗
+                          </a>
                         ) : <span className="text-gray-300">—</span>}
                         </td>
                         <td>
@@ -663,7 +773,18 @@ export default function CompaniesPage() {
                       <td className="text-gray-600">{company.location || '—'}</td>
                       <td>
                         {company.website_link ? (
-                          <a href={formatUrl(company.website_link)} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700 text-xs font-medium">Open ↗</a>
+                          <a 
+                            href={formatUrl(company.website_link)} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-brand-600 hover:text-brand-700 text-xs font-medium"
+                            onClick={() => {
+                              const myCompanyMatch = myCompanies.find(mc => mc.id === company.id);
+                              if (myCompanyMatch) handleLinkClick(myCompanyMatch);
+                            }}
+                          >
+                            Open ↗
+                          </a>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
                       <td>
@@ -706,7 +827,56 @@ export default function CompaniesPage() {
         }
         size="lg"
       >
-        <form onSubmit={handleSave} className="space-y-4">
+        {smartMode ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Company Name or Website URL</label>
+              <textarea
+                value={companyInput}
+                onChange={(e) => setCompanyInput(e.target.value)}
+                placeholder="e.g. Tesla, or https://tesla.com"
+                rows={3}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setSmartMode(false)}
+                className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+              >
+                Switch to Manual Entry
+              </button>
+              <Button
+                type="button"
+                onClick={handleAnalyze}
+                disabled={!companyInput.trim() || analyzing}
+                className="min-w-[140px]"
+              >
+                {analyzing ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{analyzingStatus || 'Analyzing...'}</span>
+                  </div>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Analyze Company
+                  </>
+                )}
+              </Button>
+            </div>
+            {analyzingError && (
+              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100">
+                An error occurred: {analyzingStatus}
+              </div>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-gray-700">Company Name *</label>
@@ -812,6 +982,7 @@ export default function CompaniesPage() {
             </Button>
           </div>
         </form>
+        )}
       </Modal>
 
       {/* Delete Confirm */}
