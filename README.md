@@ -13,11 +13,12 @@ A comprehensive, fast, and intuitive web application to track job applications, 
 
 - **Dashboard & Analytics** — A dynamic overview with total applications, interview counts, offers, and rejections. Filter by status and specific date ranges.
 - **Job Application Tracking** — Full data table with search, filter, sort, inline status editing, and sleek modal forms to log and manage your job hunt.
+- **AI Smart Add** — Automatically scrape job links or company URLs, using Gemini 2.5 Flash to instantly parse descriptions and fill out your database. Features *Google Search Grounding* for broken links and *Fuzzy Duplicate Detection* to prevent duplicate entries.
 - **Global & Tracked Companies** — A shared global database of companies. Users can "track" global companies to add their private interest-level stars, LinkedIn connections, and notes without polluting the global list.
 - **Global Job Boards** — A comprehensive, globally-accessible directory of job search sites. Users can "track" specific boards to add their personal keywords, browsing dates, and private notes.
 - **Quick Notes (Floating Notepad)** — A globally accessible floating notepad that sits in the corner of your screen on every page. Perfect for rapidly storing job links or titles before properly logging them.
-- **Candidate Profile Builder** — A dedicated section to manage your professional identity. Store your Professional Summary, Experience, Projects, Education, and Core Skills in one centralized database.
-- **AI Workshop / Generator** — Integrated workspace to generate and format Cover Letters and CVs using your built-in candidate profile data.
+- **Candidate Profile Builder** — A dedicated section to manage your professional identity. Store your Professional Summary, Experience, Projects, Education, and Core Skills in one centralized database. Features a clean, collapsible accordion UI for focused writing.
+- **AI Workshop / Generator** — Integrated workspace to generate and format Cover Letters and CVs using your built-in candidate profile data and the specific job description context.
 - **Skill Gap Tracking** — Track required skills you've discovered during your job hunt. Group them by category, assign priorities, and visually monitor your learning progress.
 - **Smart Suggestions** — Auto-complete dropdowns intelligently suggest previous entries (like company names, locations, and sectors) to vastly speed up data entry.
 
@@ -37,6 +38,7 @@ A comprehensive, fast, and intuitive web application to track job applications, 
 - **Node.js** ≥ 18
 - **npm** ≥ 9
 - A **Supabase** project ([create one free](https://supabase.com/dashboard))
+- A **Gemini API Key** ([get one free via Google AI Studio](https://aistudio.google.com/app/apikey)) for Smart Add and Workshop features.
 
 ---
 
@@ -67,6 +69,7 @@ Edit `.env.local` and paste your values:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 ### 4. Run Database Migrations
