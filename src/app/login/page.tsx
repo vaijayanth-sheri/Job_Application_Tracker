@@ -43,14 +43,19 @@ export default function LoginPage() {
 
   const features = [
     {
+      title: 'AI Smart Add',
+      description: 'Drop a URL and let Gemini AI scrape the page or search Google to instantly fill out your job and company trackers.',
+      icon: '⚡',
+    },
+    {
+      title: 'AI Workshop',
+      description: 'Store your candidate profile and use integrated AI to instantly generate tailored cover letters and CVs for any role.',
+      icon: '🤖',
+    },
+    {
       title: 'Visual Dashboard',
       description: 'Get instant clarity on your job search funnel. Track applications from wishlist to offer with powerful analytics.',
       icon: '📊',
-    },
-    {
-      title: 'AI Profile & Generator',
-      description: 'Store your candidate profile and use integrated AI to instantly generate tailored cover letters and CVs.',
-      icon: '🤖',
     },
     {
       title: 'Global Directories',
@@ -61,6 +66,11 @@ export default function LoginPage() {
       title: 'Skill Gap Analysis',
       description: 'Identify missing skills across job descriptions, prioritize learning, and track your progress systematically.',
       icon: '🎯',
+    },
+    {
+      title: 'Duplicate Detection',
+      description: 'Built-in fuzzy matching prevents database clutter by automatically catching duplicate companies and job postings.',
+      icon: '🛡️',
     },
   ];
 
