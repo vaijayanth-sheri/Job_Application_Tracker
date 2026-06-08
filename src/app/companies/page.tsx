@@ -61,6 +61,7 @@ export default function CompaniesPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingStatus, setAnalyzingStatus] = useState('');
   const [analyzingError, setAnalyzingError] = useState(false);
+  const [potentialMatches, setPotentialMatches] = useState<any[]>([]);
   const [editingMyCompany, setEditingMyCompany] = useState<CompanyDisplay | null>(null);
   const [editingGlobalCompany, setEditingGlobalCompany] = useState<Company | null>(null);
   const [form, setForm] = useState<CompanyFormData>(EMPTY_FORM);
@@ -220,6 +221,7 @@ export default function CompaniesPage() {
     setForm(EMPTY_FORM);
     setSmartMode(true);
     setCompanyInput('');
+    setPotentialMatches([]);
     setModalOpen(true);
   };
 
@@ -387,28 +389,24 @@ export default function CompaniesPage() {
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!companyInput.trim()) {
-      addToast('Please enter a company name or URL', 'error');
-      return;
-    }
+  const performAIAnalysis = async (inputToAnalyze: string) => {
     setAnalyzing(true);
     setAnalyzingError(false);
     setAnalyzingStatus('Analyzing input...');
     try {
-      let textToAnalyze = companyInput;
-      const isUrl = /^https?:\/\//i.test(companyInput.trim());
+      let textToAnalyze = inputToAnalyze;
+      const isUrl = /^https?:\/\//i.test(inputToAnalyze.trim());
       
       if (isUrl) {
         setAnalyzingStatus('Scraping website...');
         const scrapeRes = await fetch('/api/scrape', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: companyInput.trim() })
+          body: JSON.stringify({ url: inputToAnalyze.trim() })
         });
         if (scrapeRes.ok) {
           const scrapeData = await scrapeRes.json();
-          textToAnalyze = `URL: ${companyInput.trim()}\n\nContent:\n${scrapeData.text}`;
+          textToAnalyze = `URL: ${inputToAnalyze.trim()}\n\nContent:\n${scrapeData.text}`;
         }
       }
 
@@ -432,11 +430,12 @@ export default function CompaniesPage() {
         company_name: data.company_name || '',
         sector: data.sector || '',
         location: data.location || '',
-        website_link: data.website_link || (isUrl ? companyInput.trim() : ''),
+        website_link: data.website_link || (isUrl ? inputToAnalyze.trim() : ''),
         is_global: data.is_global !== undefined ? data.is_global : true,
       });
 
       setSmartMode(false);
+      setPotentialMatches([]);
       addToast('Company data extracted. Please verify and save.', 'success');
     } catch (err: any) {
       setAnalyzingError(true);
@@ -444,6 +443,51 @@ export default function CompaniesPage() {
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  const handleAnalyze = async () => {
+    if (!companyInput.trim()) {
+      addToast('Please enter a company name or URL', 'error');
+      return;
+    }
+    
+    // Fuzzy matching logic
+    const input = companyInput.trim().toLowerCase();
+    const isUrl = /^https?:\/\//i.test(input);
+    
+    let matches: any[] = [];
+    
+    if (isUrl) {
+      // Extract hostname
+      try {
+        const urlObj = new URL(input);
+        const host = urlObj.hostname.replace('www.', '');
+        matches = globalCompanies.filter(c => {
+          if (!c.website_link) return false;
+          const cUrlStr = c.website_link.toLowerCase();
+          return cUrlStr.includes(host);
+        });
+      } catch (e) {
+        // invalid URL format
+      }
+    } else {
+      // It's a name
+      const cleanInput = input.replace(/inc\.?|llc|gmbh|ltd|co\.?|corp/g, '').trim();
+      matches = globalCompanies.filter(c => {
+        if (!c.company_name) return false;
+        const cName = c.company_name.toLowerCase().replace(/inc\.?|llc|gmbh|ltd|co\.?|corp/g, '').trim();
+        if (cleanInput.length < 3) return cName === cleanInput;
+        return cName.includes(cleanInput) || cleanInput.includes(cName);
+      });
+    }
+
+    if (matches.length > 0) {
+      setPotentialMatches(matches);
+      return;
+    }
+    
+    // No matches, proceed to AI
+    await performAIAnalysis(companyInput);
   };
 
   const handleDelete = async () => {
@@ -829,50 +873,89 @@ export default function CompaniesPage() {
       >
         {smartMode ? (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Company Name or Website URL</label>
-              <textarea
-                value={companyInput}
-                onChange={(e) => setCompanyInput(e.target.value)}
-                placeholder="e.g. Tesla, or https://tesla.com"
-                rows={3}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setSmartMode(false)}
-                className="text-sm text-gray-500 hover:text-gray-700 font-medium"
-              >
-                Switch to Manual Entry
-              </button>
-              <Button
-                type="button"
-                onClick={handleAnalyze}
-                disabled={!companyInput.trim() || analyzing}
-                className="min-w-[140px]"
-              >
-                {analyzing ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>{analyzingStatus || 'Analyzing...'}</span>
-                  </div>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 mr-2 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Analyze Company
-                  </>
-                )}
-              </Button>
-            </div>
-            {analyzingError && (
-              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100">
-                An error occurred: {analyzingStatus}
+            {potentialMatches.length > 0 ? (
+              <div className="space-y-4">
+                <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-xl border border-amber-200">
+                  <strong>Wait!</strong> We found some existing companies that look like close matches. 
+                  You can link directly to them to avoid creating duplicates.
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {potentialMatches.map(match => {
+                    const myMatch = myCompanies.find(mc => mc.id === match.id);
+                    return (
+                      <div key={match.id} className="p-3 bg-white rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-brand-300 transition-colors">
+                        <div>
+                          <div className="font-semibold text-gray-900">{match.company_name}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {match.sector ? <span className="font-medium text-brand-600">{match.sector}</span> : 'No sector'} • {match.website_link || 'No website'}
+                          </div>
+                        </div>
+                        <div className="shrink-0">
+                          {myMatch ? (
+                            <Button size="sm" variant="secondary" onClick={() => openEditMyCompany(myMatch)}>View in My List</Button>
+                          ) : (
+                            <Button size="sm" onClick={() => { addToMyList(match); setModalOpen(false); }}>Add to My List</Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="pt-4 flex items-center justify-between border-t border-gray-100">
+                  <button type="button" onClick={() => setPotentialMatches([])} className="text-sm text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
+                  <Button onClick={() => performAIAnalysis(companyInput)} disabled={analyzing} className="bg-gray-800 hover:bg-gray-900">
+                    {analyzing ? 'Analyzing...' : 'Ignore and Run AI Analysis'}
+                  </Button>
+                </div>
               </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Company Name or Website URL</label>
+                  <textarea
+                    value={companyInput}
+                    onChange={(e) => setCompanyInput(e.target.value)}
+                    placeholder="e.g. Tesla, or https://tesla.com"
+                    rows={3}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setSmartMode(false)}
+                    className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+                  >
+                    Switch to Manual Entry
+                  </button>
+                  <Button
+                    type="button"
+                    onClick={handleAnalyze}
+                    disabled={!companyInput.trim() || analyzing}
+                    className="min-w-[140px]"
+                  >
+                    {analyzing ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>{analyzingStatus || 'Analyzing...'}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Analyze Company
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {analyzingError && (
+                  <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100">
+                    An error occurred: {analyzingStatus}
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : (
