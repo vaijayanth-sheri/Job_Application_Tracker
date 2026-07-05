@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import Button from '@/components/ui/Button';
@@ -13,8 +13,26 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [globalCompanyCount, setGlobalCompanyCount] = useState<number | null>(null);
+  const [globalJobBoardCount, setGlobalJobBoardCount] = useState<number | null>(null);
 
   const supabase = createClient();
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const [compRes, boardRes] = await Promise.all([
+          supabase.from('companies').select('*', { count: 'exact', head: true }),
+          supabase.from('job_boards').select('*', { count: 'exact', head: true })
+        ]);
+        if (compRes.count !== null) setGlobalCompanyCount(compRes.count);
+        if (boardRes.count !== null) setGlobalJobBoardCount(boardRes.count);
+      } catch (err) {
+        console.error('Failed to fetch public stats', err);
+      }
+    };
+    fetchCounts();
+  }, [supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,9 +111,29 @@ export default function LoginPage() {
           <h2 className="text-4xl lg:text-5xl font-extrabold text-gray-900 tracking-tight leading-tight mb-6">
             The complete operating system for your career.
           </h2>
-          <p className="text-lg text-gray-600 mb-10 leading-relaxed">
+          <p className="text-lg text-gray-600 mb-8 leading-relaxed">
             Replace scattered spreadsheets with a powerful, unified workspace. JobTracker helps you manage applications, master required skills, and generate tailored documents all in one place.
           </p>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 gap-4 mb-10">
+            <div className="bg-brand-50 border border-brand-100 rounded-2xl p-5 shadow-sm flex flex-col justify-center transform transition-transform hover:-translate-y-1">
+              <div className="text-3xl font-extrabold text-brand-600 mb-1">
+                {globalCompanyCount !== null ? globalCompanyCount : '...'}
+              </div>
+              <div className="text-sm font-medium text-brand-800">
+                Global Companies
+              </div>
+            </div>
+            <div className="bg-violet-50 border border-violet-100 rounded-2xl p-5 shadow-sm flex flex-col justify-center transform transition-transform hover:-translate-y-1">
+              <div className="text-3xl font-extrabold text-violet-600 mb-1">
+                {globalJobBoardCount !== null ? globalJobBoardCount : '...'}
+              </div>
+              <div className="text-sm font-medium text-violet-800">
+                Job Boards Tracked
+              </div>
+            </div>
+          </div>
 
           <hr className="border-gray-200 mb-10" />
 

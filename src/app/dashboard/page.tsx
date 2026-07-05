@@ -18,6 +18,10 @@ const statusOptions: { value: string; label: string }[] = [
 
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [recentMyCompanies, setRecentMyCompanies] = useState<any[]>([]);
+  const [recentMyBoards, setRecentMyBoards] = useState<any[]>([]);
+  const [recentGlobalCompanies, setRecentGlobalCompanies] = useState<any[]>([]);
+  const [recentGlobalBoards, setRecentGlobalBoards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
@@ -26,16 +30,32 @@ export default function DashboardPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    fetchJobs();
+    fetchDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchJobs = async () => {
-    const { data } = await supabase
-      .from('jobs')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setJobs(data || []);
+  const fetchDashboardData = async () => {
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+    const [
+      { data: jobsData },
+      { data: myCompaniesData },
+      { data: myBoardsData },
+      { data: globalCompaniesData },
+      { data: globalBoardsData }
+    ] = await Promise.all([
+      supabase.from('jobs').select('*').order('created_at', { ascending: false }),
+      supabase.from('user_companies').select('*, companies(*)').gte('created_at', twoDaysAgo).order('created_at', { ascending: false }).limit(5),
+      supabase.from('user_job_boards').select('*, job_boards(*)').gte('last_browsed', twoDaysAgo).order('last_browsed', { ascending: false }).limit(5),
+      supabase.from('companies').select('*').gte('created_at', twoDaysAgo).order('created_at', { ascending: false }).limit(5),
+      supabase.from('job_boards').select('*').gte('created_at', twoDaysAgo).order('created_at', { ascending: false }).limit(5),
+    ]);
+
+    setJobs(jobsData || []);
+    setRecentMyCompanies(myCompaniesData || []);
+    setRecentMyBoards(myBoardsData || []);
+    setRecentGlobalCompanies(globalCompaniesData || []);
+    setRecentGlobalBoards(globalBoardsData || []);
     setLoading(false);
   };
 
@@ -70,7 +90,12 @@ export default function DashboardPage() {
     return counts;
   }, [filteredJobs]);
 
-  const recentJobs = useMemo(() => filteredJobs.slice(0, 10), [filteredJobs]);
+  const wishlistJobs = useMemo(() => jobs.filter(j => j.status === 'wishlist'), [jobs]);
+  
+  const recentJobs = useMemo(() => {
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    return jobs.filter(j => j.created_at >= twoDaysAgo || j.applied_date >= twoDaysAgo).slice(0, 5);
+  }, [jobs]);
 
   const statCards = [
     { key: 'total', label: 'Total Jobs', icon: '📊' },
@@ -100,6 +125,27 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500 mt-1">Your job search at a glance</p>
       </div>
+
+      {/* Wishlist Reminder */}
+      {wishlistJobs.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 shadow-sm transform transition-all hover:shadow-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="text-2xl">⭐</div>
+            <div>
+              <h2 className="text-lg font-bold text-amber-900">Action Required: Wishlist Jobs</h2>
+              <p className="text-sm text-amber-800">You have {wishlistJobs.length} job(s) sitting in your wishlist waiting to be applied to.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-1">
+            {wishlistJobs.map(job => (
+              <div key={job.id} className="bg-white rounded-xl p-3 border border-amber-100 shadow-sm flex flex-col gap-1 hover:border-amber-300 transition-colors">
+                <span className="font-semibold text-gray-900 truncate">{job.title}</span>
+                <span className="text-sm text-gray-600 truncate">{job.company || 'Unknown Company'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -170,51 +216,98 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="glass-card overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Recent Activity</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Your latest job entries</p>
+      {/* Recent Activity Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Global Recent Activity */}
+        <div className="glass-card p-5 lg:p-6 flex flex-col">
+           <h3 className="text-base font-semibold text-gray-900 mb-5 flex items-center gap-2">
+             <span className="text-xl">🌐</span> Global Ecosystem Updates (Last 48h)
+           </h3>
+           
+           {recentGlobalCompanies.length === 0 && recentGlobalBoards.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
+                <div className="text-3xl mb-2 opacity-50">🌍</div>
+                <p className="text-sm text-gray-500">No new community additions in the last 48 hours.</p>
+              </div>
+           ) : (
+             <div className="space-y-6">
+               {recentGlobalCompanies.length > 0 && (
+                 <div>
+                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">New Companies</h4>
+                   <ul className="space-y-3">
+                     {recentGlobalCompanies.map(c => (
+                       <li key={c.id} className="flex flex-col">
+                         <span className="text-sm font-medium text-brand-700">{c.company_name}</span> 
+                         <span className="text-xs text-gray-500">{c.sector || 'Unknown sector'}</span>
+                       </li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+               {recentGlobalBoards.length > 0 && (
+                 <div>
+                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">New Job Boards</h4>
+                   <ul className="space-y-3">
+                     {recentGlobalBoards.map(b => (
+                       <li key={b.id} className="text-sm font-medium text-violet-700">{b.site}</li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+             </div>
+           )}
         </div>
 
-        {recentJobs.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <div className="text-4xl mb-3">📋</div>
-            <p className="text-sm text-gray-500">No jobs found. Start by adding your first job application!</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Company</th>
-                  <th>Status</th>
-                  <th>Applied</th>
-                  <th>Location</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentJobs.map((job) => {
-                  const colors = STATUS_COLORS[job.status];
-                  return (
-                    <tr key={job.id}>
-                      <td className="font-medium text-gray-900">{job.title}</td>
-                      <td className="text-gray-600">{job.company || '—'}</td>
-                      <td>
-                        <Badge bg={colors.bg} text={colors.text} dot={colors.dot}>
-                          {statusLabel(job.status)}
-                        </Badge>
-                      </td>
-                      <td className="text-gray-500 text-xs">{formatDate(job.applied_date)}</td>
-                      <td className="text-gray-500">{job.location || '—'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* Personal Recent Activity */}
+        <div className="glass-card p-5 lg:p-6 flex flex-col">
+           <h3 className="text-base font-semibold text-gray-900 mb-5 flex items-center gap-2">
+             <span className="text-xl">👤</span> Your Recent Activity (Last 48h)
+           </h3>
+           
+           {recentJobs.length === 0 && recentMyCompanies.length === 0 && recentMyBoards.length === 0 ? (
+             <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
+               <div className="text-3xl mb-2 opacity-50">💤</div>
+               <p className="text-sm text-gray-500">No personal tracking activity in the last 48 hours.</p>
+             </div>
+           ) : (
+             <div className="space-y-6">
+               {recentJobs.length > 0 && (
+                 <div>
+                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Recent Jobs</h4>
+                   <ul className="space-y-3">
+                     {recentJobs.map(j => (
+                       <li key={j.id} className="flex flex-col">
+                         <span className="text-sm font-medium text-gray-900">{j.title}</span>
+                         <span className="text-xs text-gray-500">at {j.company || 'Unknown'}</span>
+                       </li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+               {recentMyCompanies.length > 0 && (
+                 <div>
+                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Tracked Companies</h4>
+                   <ul className="space-y-3">
+                     {recentMyCompanies.map(c => (
+                       <li key={c.id} className="text-sm font-medium text-gray-900">{c.companies?.company_name}</li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+               {recentMyBoards.length > 0 && (
+                 <div>
+                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Browsed Portals</h4>
+                   <ul className="space-y-3">
+                     {recentMyBoards.map(b => (
+                       <li key={b.id} className="text-sm font-medium text-gray-900">{b.job_boards?.site}</li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+             </div>
+           )}
+        </div>
       </div>
     </div>
   );
