@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { type Job, type JobStatus } from '@/types/database';
 import { formatDate, STATUS_COLORS, STAT_GRADIENTS, statusLabel, cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ export default function DashboardPage() {
   const [dateTo, setDateTo] = useState('');
 
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     fetchDashboardData();
@@ -131,8 +133,15 @@ export default function DashboardPage() {
         {statCards.map((card, i) => (
           <div
             key={card.key}
+            onClick={() => {
+              if (card.key !== 'total') {
+                router.push(`/jobs?status=${card.key}`);
+              } else {
+                router.push(`/jobs`);
+              }
+            }}
             className={cn(
-              'stat-card bg-gradient-to-br',
+              'stat-card bg-gradient-to-br cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all',
               STAT_GRADIENTS[card.key],
               `stagger-${i + 1}`
             )}
@@ -163,7 +172,11 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-1">
             {wishlistJobs.map(job => (
-              <div key={job.id} className="bg-white rounded-xl p-3 border border-amber-100 shadow-sm flex flex-col gap-1 hover:border-amber-300 transition-colors">
+              <div 
+                key={job.id} 
+                onClick={() => router.push(`/jobs?jobId=${job.id}`)}
+                className="bg-white rounded-xl p-3 border border-amber-100 shadow-sm flex flex-col gap-1 hover:border-amber-300 transition-colors cursor-pointer hover:shadow-md"
+              >
                 <span className="font-semibold text-gray-900 truncate">{job.title}</span>
                 <span className="text-sm text-gray-600 truncate">{job.company || 'Unknown Company'}</span>
               </div>
@@ -234,12 +247,19 @@ export default function DashboardPage() {
              <div className="space-y-6">
                {recentGlobalCompanies.length > 0 && (
                  <div>
-                   <h4 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                   <h4 
+                    onClick={() => router.push('/companies?tab=global')}
+                    className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3 flex items-center gap-2 cursor-pointer hover:underline"
+                   >
                      <span className="w-2 h-2 rounded-full bg-blue-500"></span> New Companies
                    </h4>
                    <ul className="flex flex-col rounded-xl overflow-hidden border border-blue-100">
                      {recentGlobalCompanies.map((c, i) => (
-                       <li key={c.id} className={`flex flex-col px-4 py-3 ${i % 2 === 0 ? 'bg-blue-50/70' : 'bg-white'}`}>
+                       <li 
+                         key={c.id} 
+                         onClick={() => router.push('/companies?tab=global')}
+                         className={`flex flex-col px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-blue-50/70' : 'bg-white'}`}
+                       >
                          <span className="text-sm font-semibold text-blue-900">{c.company_name}</span> 
                          <span className="text-xs text-blue-600/80 font-medium">{c.sector || 'Unknown sector'}</span>
                        </li>
@@ -249,12 +269,19 @@ export default function DashboardPage() {
                )}
                {recentGlobalBoards.length > 0 && (
                  <div>
-                   <h4 className="text-sm font-bold text-purple-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6">
+                   <h4 
+                     onClick={() => router.push('/boards')}
+                     className="text-sm font-bold text-purple-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6 cursor-pointer hover:underline"
+                   >
                      <span className="w-2 h-2 rounded-full bg-purple-500"></span> New Job Boards
                    </h4>
                    <ul className="flex flex-col rounded-xl overflow-hidden border border-purple-100">
                      {recentGlobalBoards.map((b, i) => (
-                       <li key={b.id} className={`flex items-center px-4 py-3 ${i % 2 === 0 ? 'bg-purple-50/70' : 'bg-white'}`}>
+                       <li 
+                         key={b.id} 
+                         onClick={() => router.push('/boards')}
+                         className={`flex items-center px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-purple-50/70' : 'bg-white'}`}
+                       >
                          <span className="text-sm font-semibold text-purple-900">{b.site}</span>
                        </li>
                      ))}
@@ -280,27 +307,49 @@ export default function DashboardPage() {
              <div className="space-y-6">
                {recentJobs.length > 0 && (
                  <div>
-                   <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                   <h4 
+                     onClick={() => router.push('/jobs')}
+                     className="text-sm font-bold text-emerald-700 uppercase tracking-wider mb-3 flex items-center gap-2 cursor-pointer hover:underline"
+                   >
                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Recent Jobs
                    </h4>
                    <ul className="flex flex-col rounded-xl overflow-hidden border border-emerald-100">
-                     {recentJobs.map((j, i) => (
-                       <li key={j.id} className={`flex flex-col px-4 py-3 ${i % 2 === 0 ? 'bg-emerald-50/70' : 'bg-white'}`}>
-                         <span className="text-sm font-semibold text-emerald-900">{j.title}</span>
-                         <span className="text-xs text-emerald-600/80 font-medium">at {j.company || 'Unknown'}</span>
-                       </li>
-                     ))}
+                     {recentJobs.map((j, i) => {
+                       const colors = STATUS_COLORS[j.status];
+                       return (
+                         <li 
+                           key={j.id} 
+                           onClick={() => router.push(`/jobs?jobId=${j.id}`)}
+                           className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-emerald-50/70' : 'bg-white'}`}
+                         >
+                           <div className="flex flex-col">
+                             <span className="text-sm font-semibold text-emerald-900">{j.title}</span>
+                             <span className="text-xs text-emerald-600/80 font-medium">at {j.company || 'Unknown'}</span>
+                           </div>
+                           <Badge bg={colors.bg} text={colors.text} dot={colors.dot}>
+                             {statusLabel(j.status)}
+                           </Badge>
+                         </li>
+                       );
+                     })}
                    </ul>
                  </div>
                )}
                {recentMyCompanies.length > 0 && (
                  <div>
-                   <h4 className="text-sm font-bold text-amber-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6">
+                   <h4 
+                     onClick={() => router.push('/companies')}
+                     className="text-sm font-bold text-amber-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6 cursor-pointer hover:underline"
+                   >
                      <span className="w-2 h-2 rounded-full bg-amber-500"></span> Tracked Companies
                    </h4>
                    <ul className="flex flex-col rounded-xl overflow-hidden border border-amber-100">
                      {recentMyCompanies.map((c, i) => (
-                       <li key={c.id} className={`flex items-center px-4 py-3 ${i % 2 === 0 ? 'bg-amber-50/70' : 'bg-white'}`}>
+                       <li 
+                         key={c.id} 
+                         onClick={() => router.push('/companies')}
+                         className={`flex items-center px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-amber-50/70' : 'bg-white'}`}
+                       >
                          <span className="text-sm font-semibold text-amber-900">{c.companies?.company_name}</span>
                        </li>
                      ))}
@@ -309,12 +358,19 @@ export default function DashboardPage() {
                )}
                {recentMyBoards.length > 0 && (
                  <div>
-                   <h4 className="text-sm font-bold text-rose-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6">
+                   <h4 
+                     onClick={() => router.push('/boards')}
+                     className="text-sm font-bold text-rose-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6 cursor-pointer hover:underline"
+                   >
                      <span className="w-2 h-2 rounded-full bg-rose-500"></span> Browsed Portals
                    </h4>
                    <ul className="flex flex-col rounded-xl overflow-hidden border border-rose-100">
                      {recentMyBoards.map((b, i) => (
-                       <li key={b.id} className={`flex items-center px-4 py-3 ${i % 2 === 0 ? 'bg-rose-50/70' : 'bg-white'}`}>
+                       <li 
+                         key={b.id} 
+                         onClick={() => router.push('/boards')}
+                         className={`flex items-center px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-rose-50/70' : 'bg-white'}`}
+                       >
                          <span className="text-sm font-semibold text-rose-900">{b.job_boards?.site}</span>
                        </li>
                      ))}

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { type CompanyDisplay, type CompanyFormData, type Company } from '@/types/database';
 import { formatDate, toInputDate, cn, formatUrl } from '@/lib/utils';
@@ -37,8 +38,11 @@ type SortField = 'company_name' | 'interest_level' | 'last_reviewed' | 'sector' 
 type SortDir = 'asc' | 'desc';
 type TabState = 'global' | 'myList';
 
-export default function CompaniesPage() {
-  const [activeTab, setActiveTab] = useState<TabState>('myList');
+function CompaniesContent() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') as TabState | null;
+
+  const [activeTab, setActiveTab] = useState<TabState>(initialTab || 'myList');
   
   const [myCompanies, setMyCompanies] = useState<CompanyDisplay[]>([]);
   const [globalCompanies, setGlobalCompanies] = useState<Company[]>([]);
@@ -1078,5 +1082,13 @@ export default function CompaniesPage() {
         loading={deleting}
       />
     </div>
+  );
+}
+
+export default function CompaniesPage() {
+  return (
+    <Suspense fallback={<div className="page-enter p-8 text-center text-gray-500">Loading companies...</div>}>
+      <CompaniesContent />
+    </Suspense>
   );
 }

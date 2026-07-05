@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { type Job, type JobStatus, type JobFormData, type CompanyFormData } from '@/types/database';
 import {
@@ -60,12 +61,16 @@ const EMPTY_FORM: JobFormData = {
 type SortField = 'title' | 'company' | 'applied_date' | 'status' | 'relevancy' | 'interest_level' | 'created_at';
 type SortDir = 'asc' | 'desc';
 
-export default function JobsPage() {
+function JobsContent() {
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get('status');
+  const initialJobId = searchParams.get('jobId');
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState(initialStatus && STATUS_OPTIONS.some(o => o.value === initialStatus) ? initialStatus : 'all');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -124,6 +129,16 @@ export default function JobsPage() {
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  useEffect(() => {
+    if (initialJobId && jobs.length > 0 && !modalOpen && !editingJob) {
+      const job = jobs.find(j => j.id === initialJobId);
+      if (job) {
+        openEdit(job);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, initialJobId]);
 
   // Filter + Sort
   const filtered = useMemo(() => {
@@ -968,5 +983,13 @@ export default function JobsPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function JobsPage() {
+  return (
+    <Suspense fallback={<div className="page-enter p-8 text-center text-gray-500">Loading jobs...</div>}>
+      <JobsContent />
+    </Suspense>
   );
 }
