@@ -126,27 +126,6 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-500 mt-1">Your job search at a glance</p>
       </div>
 
-      {/* Wishlist Reminder */}
-      {wishlistJobs.length > 0 && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 shadow-sm transform transition-all hover:shadow-md">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="text-2xl">⭐</div>
-            <div>
-              <h2 className="text-lg font-bold text-amber-900">Action Required: Wishlist Jobs</h2>
-              <p className="text-sm text-amber-800">You have {wishlistJobs.length} job(s) sitting in your wishlist waiting to be applied to.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-1">
-            {wishlistJobs.map(job => (
-              <div key={job.id} className="bg-white rounded-xl p-3 border border-amber-100 shadow-sm flex flex-col gap-1 hover:border-amber-300 transition-colors">
-                <span className="font-semibold text-gray-900 truncate">{job.title}</span>
-                <span className="text-sm text-gray-600 truncate">{job.company || 'Unknown Company'}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {statCards.map((card, i) => (
@@ -171,6 +150,27 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Wishlist Reminder */}
+      {wishlistJobs.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 shadow-sm transform transition-all hover:shadow-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="text-2xl">⭐</div>
+            <div>
+              <h2 className="text-lg font-bold text-amber-900">Action Required: Wishlist Jobs</h2>
+              <p className="text-sm text-amber-800">You have {wishlistJobs.length} job(s) sitting in your wishlist waiting to be applied to.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-1">
+            {wishlistJobs.map(job => (
+              <div key={job.id} className="bg-white rounded-xl p-3 border border-amber-100 shadow-sm flex flex-col gap-1 hover:border-amber-300 transition-colors">
+                <span className="font-semibold text-gray-900 truncate">{job.title}</span>
+                <span className="text-sm text-gray-600 truncate">{job.company || 'Unknown Company'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="glass-card p-4">
@@ -220,9 +220,9 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Global Recent Activity */}
-        <div className="glass-card p-5 lg:p-6 flex flex-col">
-           <h3 className="text-base font-semibold text-gray-900 mb-5 flex items-center gap-2">
-             <span className="text-xl">🌐</span> Global Ecosystem Updates (Last 48h)
+        <div className="glass-card p-5 lg:p-6 flex flex-col bg-slate-50/50">
+           <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-200 pb-3">
+             <span className="text-2xl">🌐</span> Global Ecosystem Updates
            </h3>
            
            {recentGlobalCompanies.length === 0 && recentGlobalBoards.length === 0 ? (
@@ -234,12 +234,14 @@ export default function DashboardPage() {
              <div className="space-y-6">
                {recentGlobalCompanies.length > 0 && (
                  <div>
-                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">New Companies</h4>
-                   <ul className="space-y-3">
-                     {recentGlobalCompanies.map(c => (
-                       <li key={c.id} className="flex flex-col">
-                         <span className="text-sm font-medium text-brand-700">{c.company_name}</span> 
-                         <span className="text-xs text-gray-500">{c.sector || 'Unknown sector'}</span>
+                   <h4 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                     <span className="w-2 h-2 rounded-full bg-blue-500"></span> New Companies
+                   </h4>
+                   <ul className="flex flex-col rounded-xl overflow-hidden border border-blue-100">
+                     {recentGlobalCompanies.map((c, i) => (
+                       <li key={c.id} className={`flex flex-col px-4 py-3 ${i % 2 === 0 ? 'bg-blue-50/70' : 'bg-white'}`}>
+                         <span className="text-sm font-semibold text-blue-900">{c.company_name}</span> 
+                         <span className="text-xs text-blue-600/80 font-medium">{c.sector || 'Unknown sector'}</span>
                        </li>
                      ))}
                    </ul>
@@ -247,10 +249,14 @@ export default function DashboardPage() {
                )}
                {recentGlobalBoards.length > 0 && (
                  <div>
-                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">New Job Boards</h4>
-                   <ul className="space-y-3">
-                     {recentGlobalBoards.map(b => (
-                       <li key={b.id} className="text-sm font-medium text-violet-700">{b.site}</li>
+                   <h4 className="text-sm font-bold text-purple-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6">
+                     <span className="w-2 h-2 rounded-full bg-purple-500"></span> New Job Boards
+                   </h4>
+                   <ul className="flex flex-col rounded-xl overflow-hidden border border-purple-100">
+                     {recentGlobalBoards.map((b, i) => (
+                       <li key={b.id} className={`flex items-center px-4 py-3 ${i % 2 === 0 ? 'bg-purple-50/70' : 'bg-white'}`}>
+                         <span className="text-sm font-semibold text-purple-900">{b.site}</span>
+                       </li>
                      ))}
                    </ul>
                  </div>
@@ -260,9 +266,9 @@ export default function DashboardPage() {
         </div>
 
         {/* Personal Recent Activity */}
-        <div className="glass-card p-5 lg:p-6 flex flex-col">
-           <h3 className="text-base font-semibold text-gray-900 mb-5 flex items-center gap-2">
-             <span className="text-xl">👤</span> Your Recent Activity (Last 48h)
+        <div className="glass-card p-5 lg:p-6 flex flex-col bg-slate-50/50">
+           <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-200 pb-3">
+             <span className="text-2xl">👤</span> Your Recent Activity
            </h3>
            
            {recentJobs.length === 0 && recentMyCompanies.length === 0 && recentMyBoards.length === 0 ? (
@@ -274,12 +280,14 @@ export default function DashboardPage() {
              <div className="space-y-6">
                {recentJobs.length > 0 && (
                  <div>
-                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Recent Jobs</h4>
-                   <ul className="space-y-3">
-                     {recentJobs.map(j => (
-                       <li key={j.id} className="flex flex-col">
-                         <span className="text-sm font-medium text-gray-900">{j.title}</span>
-                         <span className="text-xs text-gray-500">at {j.company || 'Unknown'}</span>
+                   <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Recent Jobs
+                   </h4>
+                   <ul className="flex flex-col rounded-xl overflow-hidden border border-emerald-100">
+                     {recentJobs.map((j, i) => (
+                       <li key={j.id} className={`flex flex-col px-4 py-3 ${i % 2 === 0 ? 'bg-emerald-50/70' : 'bg-white'}`}>
+                         <span className="text-sm font-semibold text-emerald-900">{j.title}</span>
+                         <span className="text-xs text-emerald-600/80 font-medium">at {j.company || 'Unknown'}</span>
                        </li>
                      ))}
                    </ul>
@@ -287,20 +295,28 @@ export default function DashboardPage() {
                )}
                {recentMyCompanies.length > 0 && (
                  <div>
-                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Tracked Companies</h4>
-                   <ul className="space-y-3">
-                     {recentMyCompanies.map(c => (
-                       <li key={c.id} className="text-sm font-medium text-gray-900">{c.companies?.company_name}</li>
+                   <h4 className="text-sm font-bold text-amber-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6">
+                     <span className="w-2 h-2 rounded-full bg-amber-500"></span> Tracked Companies
+                   </h4>
+                   <ul className="flex flex-col rounded-xl overflow-hidden border border-amber-100">
+                     {recentMyCompanies.map((c, i) => (
+                       <li key={c.id} className={`flex items-center px-4 py-3 ${i % 2 === 0 ? 'bg-amber-50/70' : 'bg-white'}`}>
+                         <span className="text-sm font-semibold text-amber-900">{c.companies?.company_name}</span>
+                       </li>
                      ))}
                    </ul>
                  </div>
                )}
                {recentMyBoards.length > 0 && (
                  <div>
-                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Browsed Portals</h4>
-                   <ul className="space-y-3">
-                     {recentMyBoards.map(b => (
-                       <li key={b.id} className="text-sm font-medium text-gray-900">{b.job_boards?.site}</li>
+                   <h4 className="text-sm font-bold text-rose-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6">
+                     <span className="w-2 h-2 rounded-full bg-rose-500"></span> Browsed Portals
+                   </h4>
+                   <ul className="flex flex-col rounded-xl overflow-hidden border border-rose-100">
+                     {recentMyBoards.map((b, i) => (
+                       <li key={b.id} className={`flex items-center px-4 py-3 ${i % 2 === 0 ? 'bg-rose-50/70' : 'bg-white'}`}>
+                         <span className="text-sm font-semibold text-rose-900">{b.job_boards?.site}</span>
+                       </li>
                      ))}
                    </ul>
                  </div>
