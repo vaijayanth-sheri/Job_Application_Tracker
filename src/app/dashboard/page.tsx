@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { type Job, type JobStatus } from '@/types/database';
-import { formatDate, STATUS_COLORS, STAT_GRADIENTS, statusLabel, cn } from '@/lib/utils';
-import Badge from '@/components/ui/Badge';
+import { type Job } from '@/types/database';
+import { statusLabel, cn } from '@/lib/utils';
 import Select from '@/components/ui/Select';
 
 const statusOptions: { value: string; label: string }[] = [
@@ -27,6 +26,12 @@ export default function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  
+  // Fake user profile details for UI mockup
+  const userProfile = {
+    name: 'Vaijayanth Sheri',
+    initials: 'VS'
+  };
 
   const supabase = createClient();
   const router = useRouter();
@@ -100,20 +105,65 @@ export default function DashboardPage() {
   }, [jobs]);
 
   const statCards = [
-    { key: 'total', label: 'Total Jobs', icon: '📊' },
-    { key: 'applied', label: 'Applied', icon: '📤' },
-    { key: 'interview', label: 'Interviews', icon: '🎯' },
-    { key: 'rejected', label: 'Rejected', icon: '❌' },
-    { key: 'offer', label: 'Offers', icon: '🎉' },
+    { 
+      key: 'total', label: 'Total Jobs', icon: '📊', 
+      trend: '↑ 12%', trendColor: 'text-emerald-500', 
+      bg: 'bg-brand-50', text: 'text-brand-600',
+      sparkline: (
+        <svg className="w-16 h-8 text-brand-200 stroke-current" fill="none" viewBox="0 0 100 40">
+          <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 30 Q 20 10, 40 20 T 80 10 T 100 5" />
+        </svg>
+      )
+    },
+    { 
+      key: 'applied', label: 'Applied', icon: '📤', 
+      trend: '↑ 8%', trendColor: 'text-emerald-500', 
+      bg: 'bg-blue-50', text: 'text-blue-600',
+      sparkline: (
+        <svg className="w-16 h-8 text-blue-200 stroke-current" fill="none" viewBox="0 0 100 40">
+          <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 35 L 20 25 L 40 28 L 70 15 L 100 10" />
+        </svg>
+      )
+    },
+    { 
+      key: 'interview', label: 'Interviews', icon: '🎯', 
+      trend: '→ 0%', trendColor: 'text-amber-500', 
+      bg: 'bg-amber-50', text: 'text-amber-600',
+      sparkline: (
+        <svg className="w-16 h-8 text-amber-200 stroke-current" fill="none" viewBox="0 0 100 40">
+          <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 20 L 30 20 L 70 20 L 100 20" />
+        </svg>
+      )
+    },
+    { 
+      key: 'rejected', label: 'Rejected', icon: '❌', 
+      trend: '↓ 5%', trendColor: 'text-rose-500', 
+      bg: 'bg-rose-50', text: 'text-rose-600',
+      sparkline: (
+        <svg className="w-16 h-8 text-rose-200 stroke-current" fill="none" viewBox="0 0 100 40">
+          <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 10 L 30 15 L 60 25 L 100 35" />
+        </svg>
+      )
+    },
+    { 
+      key: 'offer', label: 'Offers', icon: '🎉', 
+      trend: '→ 0%', trendColor: 'text-emerald-500', 
+      bg: 'bg-emerald-50', text: 'text-emerald-600',
+      sparkline: (
+        <svg className="w-16 h-8 text-emerald-200 stroke-current" fill="none" viewBox="0 0 100 40">
+          <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 35 Q 20 35, 40 30 T 100 25" />
+        </svg>
+      )
+    },
   ];
 
   if (loading) {
     return (
-      <div className="page-enter space-y-6">
+      <div className="page-enter space-y-6 max-w-7xl mx-auto">
         <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse" />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-28 bg-gray-200 rounded-2xl animate-pulse" />
+            <div key={i} className="h-32 bg-white border border-gray-100 rounded-2xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -121,73 +171,145 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="page-enter space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Your job search at a glance</p>
-      </div>
+    <div className="relative page-enter max-w-[1400px] mx-auto pb-24">
+      {/* Background Graphic Masked */}
+      <div 
+        className="absolute top-0 right-0 w-full h-[400px] z-0 pointer-events-none opacity-40 mix-blend-multiply" 
+        style={{ 
+          backgroundImage: 'url(/hero_mountain.png)', 
+          backgroundPosition: 'right top', 
+          backgroundSize: 'cover', 
+          backgroundRepeat: 'no-repeat', 
+          maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)'
+        }}
+      ></div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {statCards.map((card, i) => (
-          <div
-            key={card.key}
-            onClick={() => {
-              if (card.key !== 'total') {
-                router.push(`/jobs?status=${card.key}`);
-              } else {
-                router.push(`/jobs`);
-              }
-            }}
-            className={cn(
-              'stat-card bg-gradient-to-br cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all',
-              STAT_GRADIENTS[card.key],
-              `stagger-${i + 1}`
-            )}
-            style={{ animationFillMode: 'both' }}
-          >
-            <div className="relative z-10">
-              <div className="text-2xl mb-2">{card.icon}</div>
-              <p className="text-3xl font-bold animate-count-up">
-                {stats[card.key as keyof typeof stats]}
-              </p>
-              <p className="text-sm text-white/80 font-medium mt-1">{card.label}</p>
-            </div>
-            {/* Decorative circle */}
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full bg-white/10" />
+      <div className="relative z-10 space-y-8">
+        
+        {/* Header & Profile */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
+            <p className="text-sm font-medium text-slate-500 mt-1">Your job search at a glance</p>
           </div>
-        ))}
-      </div>
 
-      {/* Wishlist Reminder */}
-      {wishlistJobs.length > 0 && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 shadow-sm transform transition-all hover:shadow-md">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="text-2xl">⭐</div>
-            <div>
-              <h2 className="text-lg font-bold text-amber-900">Action Required: Wishlist Jobs</h2>
-              <p className="text-sm text-amber-800">You have {wishlistJobs.length} job(s) sitting in your wishlist waiting to be applied to.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-1">
-            {wishlistJobs.map(job => (
-              <div 
-                key={job.id} 
-                onClick={() => router.push(`/jobs?jobId=${job.id}`)}
-                className="bg-white rounded-xl p-3 border border-amber-100 shadow-sm flex flex-col gap-1 hover:border-amber-300 transition-colors cursor-pointer hover:shadow-md"
-              >
-                <span className="font-semibold text-gray-900 truncate">{job.title}</span>
-                <span className="text-sm text-gray-600 truncate">{job.company || 'Unknown Company'}</span>
+          <div className="flex items-center gap-6">
+            {/* Notification Bell */}
+            <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+              </svg>
+              <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white">3</span>
+            </button>
+
+            {/* Profile Menu */}
+            <div className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-1.5 pr-3 rounded-full transition-colors border border-transparent hover:border-slate-200">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-brand-500 to-violet-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                {userProfile.initials}
               </div>
-            ))}
+              <div className="hidden sm:block">
+                <p className="text-sm font-bold text-slate-700 leading-tight">{userProfile.name}</p>
+              </div>
+              <svg className="w-4 h-4 text-slate-400 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Filters */}
-      <div className="glass-card p-4">
-        <div className="flex flex-wrap items-end gap-4">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-5">
+          {statCards.map((card, i) => (
+            <div
+              key={card.key}
+              onClick={() => {
+                if (card.key !== 'total') {
+                  router.push(`/jobs?status=${card.key}`);
+                } else {
+                  router.push(`/jobs`);
+                }
+              }}
+              className={cn(
+                'relative bg-white border border-slate-200/60 rounded-2xl p-5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all overflow-hidden',
+                `stagger-${i + 1}`
+              )}
+              style={{ animationFillMode: 'both' }}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl", card.bg, card.text)}>
+                  {card.icon}
+                </div>
+                <div className={cn("text-xs font-bold", card.trendColor)}>
+                  {card.trend}
+                </div>
+              </div>
+              
+              <div className="relative z-10">
+                <p className="text-3xl font-black text-slate-800 animate-count-up">
+                  {stats[card.key as keyof typeof stats]}
+                </p>
+                <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wide">{card.label}</p>
+              </div>
+
+              {/* Sparkline decoration */}
+              <div className="absolute right-0 bottom-2 opacity-60">
+                {card.sparkline}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Wishlist Reminder */}
+        {wishlistJobs.length > 0 && (
+          <div className="relative bg-gradient-to-r from-[#FFF9F0] to-[#FFF0E6] border border-[#FFE4C4] rounded-2xl p-6 shadow-sm transform transition-all hover:shadow-md overflow-hidden">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6">
+              
+              <div className="flex-shrink-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  <h2 className="text-lg font-bold text-amber-900">Action Required: Wishlist Jobs</h2>
+                </div>
+                <p className="text-sm font-medium text-amber-800/70">You have {wishlistJobs.length} job(s) sitting in your wishlist waiting to be applied to.</p>
+              </div>
+
+              <div className="flex-1 flex gap-3 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+                {wishlistJobs.map(job => (
+                  <div 
+                    key={job.id} 
+                    onClick={() => router.push(`/jobs?jobId=${job.id}`)}
+                    className="min-w-[240px] bg-white rounded-xl p-3.5 border border-amber-200 shadow-sm flex flex-col gap-1 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="font-bold text-slate-800 truncate group-hover:text-brand-600 transition-colors">{job.title}</span>
+                      <svg className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-500 truncate">{job.company || 'Unknown Company'}</span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+
+            {/* Stylized Clipboard Graphic (Decorative) */}
+            <div className="hidden lg:block absolute right-6 top-1/2 -translate-y-1/2 w-32 h-32 opacity-40 mix-blend-multiply pointer-events-none">
+              <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="25" y="15" width="50" height="70" rx="4" fill="#FDE68A" stroke="#D97706" strokeWidth="3"/>
+                <rect x="35" y="10" width="30" height="10" rx="2" fill="#FCD34D" stroke="#D97706" strokeWidth="3"/>
+                <line x1="35" y1="35" x2="65" y2="35" stroke="#D97706" strokeWidth="3" strokeLinecap="round"/>
+                <line x1="35" y1="45" x2="65" y2="45" stroke="#D97706" strokeWidth="3" strokeLinecap="round"/>
+                <line x1="35" y1="55" x2="50" y2="55" stroke="#D97706" strokeWidth="3" strokeLinecap="round"/>
+                <circle cx="70" cy="70" r="16" fill="#F59E0B"/>
+                <path d="M70 62L72.2451 66.5492L77.2654 67.279L73.6327 70.8208L74.4903 75.821L70 73.46L65.5097 75.821L66.3673 70.8208L62.7346 67.279L67.7549 66.5492L70 62Z" fill="white"/>
+              </svg>
+            </div>
+          </div>
+        )}
+
+        {/* Filters */}
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-wrap items-end gap-5">
           <div className="w-48">
             <Select
               label="Status"
@@ -197,21 +319,21 @@ export default function DashboardPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">From</label>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">From</label>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring"
+              className="px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">To</label>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">To</label>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring"
+              className="px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all"
             />
           </div>
           {(statusFilter !== 'all' || dateFrom || dateTo) && (
@@ -221,166 +343,172 @@ export default function DashboardPage() {
                 setDateFrom('');
                 setDateTo('');
               }}
-              className="text-sm text-brand-600 hover:text-brand-700 font-medium pb-2.5"
+              className="flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700 pb-3 transition-colors"
             >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               Clear filters
             </button>
           )}
         </div>
-      </div>
 
-      {/* Recent Activity Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Global Recent Activity */}
-        <div className="glass-card p-5 lg:p-6 flex flex-col bg-slate-50/50">
-           <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-200 pb-3">
-             <span className="text-2xl">🌐</span> Global Ecosystem Updates
-           </h3>
-           
-           {recentGlobalCompanies.length === 0 && recentGlobalBoards.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-                <div className="text-3xl mb-2 opacity-50">🌍</div>
-                <p className="text-sm text-gray-500">No new community additions in the last 48 hours.</p>
-              </div>
-           ) : (
-             <div className="space-y-6">
-               {recentGlobalCompanies.length > 0 && (
-                 <div>
-                   <h4 
-                    onClick={() => router.push('/companies?tab=global')}
-                    className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3 flex items-center gap-2 cursor-pointer hover:underline"
-                   >
-                     <span className="w-2 h-2 rounded-full bg-blue-500"></span> New Companies
-                   </h4>
-                   <ul className="flex flex-col rounded-xl overflow-hidden border border-blue-100">
-                     {recentGlobalCompanies.map((c, i) => (
-                       <li 
-                         key={c.id} 
-                         onClick={() => router.push('/companies?tab=global')}
-                         className={`flex flex-col px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-blue-50/70' : 'bg-white'}`}
-                       >
-                         <span className="text-sm font-semibold text-blue-900">{c.company_name}</span> 
-                         <span className="text-xs text-blue-600/80 font-medium">{c.sector || 'Unknown sector'}</span>
-                       </li>
-                     ))}
-                   </ul>
-                 </div>
-               )}
-               {recentGlobalBoards.length > 0 && (
-                 <div>
-                   <h4 
-                     onClick={() => router.push('/boards')}
-                     className="text-sm font-bold text-purple-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6 cursor-pointer hover:underline"
-                   >
-                     <span className="w-2 h-2 rounded-full bg-purple-500"></span> New Job Boards
-                   </h4>
-                   <ul className="flex flex-col rounded-xl overflow-hidden border border-purple-100">
-                     {recentGlobalBoards.map((b, i) => (
-                       <li 
-                         key={b.id} 
-                         onClick={() => router.push('/boards')}
-                         className={`flex items-center px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-purple-50/70' : 'bg-white'}`}
-                       >
-                         <span className="text-sm font-semibold text-purple-900">{b.site}</span>
-                       </li>
-                     ))}
-                   </ul>
-                 </div>
-               )}
+        {/* Recent Activity Sections */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* Global Recent Activity */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm">
+             <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+               <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                 <span className="text-2xl">🌐</span> Global Ecosystem Updates
+               </h3>
+               <button className="text-sm font-bold text-brand-600 hover:text-brand-800 transition-colors">View all</button>
              </div>
-           )}
-        </div>
-
-        {/* Personal Recent Activity */}
-        <div className="glass-card p-5 lg:p-6 flex flex-col bg-slate-50/50">
-           <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-200 pb-3">
-             <span className="text-2xl">👤</span> Your Recent Activity
-           </h3>
-           
-           {recentJobs.length === 0 && recentMyCompanies.length === 0 && recentMyBoards.length === 0 ? (
-             <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-               <div className="text-3xl mb-2 opacity-50">💤</div>
-               <p className="text-sm text-gray-500">No personal tracking activity in the last 48 hours.</p>
-             </div>
-           ) : (
-             <div className="space-y-6">
-               {recentJobs.length > 0 && (
-                 <div>
-                   <h4 
-                     onClick={() => router.push('/jobs')}
-                     className="text-sm font-bold text-emerald-700 uppercase tracking-wider mb-3 flex items-center gap-2 cursor-pointer hover:underline"
-                   >
-                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Recent Jobs
-                   </h4>
-                   <ul className="flex flex-col rounded-xl overflow-hidden border border-emerald-100">
-                     {recentJobs.map((j, i) => {
-                       const colors = STATUS_COLORS[j.status];
-                       return (
+             
+             {recentGlobalCompanies.length === 0 && recentGlobalBoards.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
+                  <div className="text-4xl mb-3 opacity-30">🌍</div>
+                  <p className="text-sm font-medium text-slate-400">No new community additions in the last 48 hours.</p>
+                </div>
+             ) : (
+               <div className="space-y-8">
+                 {recentGlobalCompanies.length > 0 && (
+                   <div>
+                     <h4 
+                      onClick={() => router.push('/companies?tab=global')}
+                      className="text-[11px] font-black text-brand-700 uppercase tracking-widest mb-4 flex items-center gap-2 cursor-pointer hover:underline"
+                     >
+                       <span className="w-2 h-2 rounded-full bg-brand-500"></span> New Companies
+                     </h4>
+                     <ul className="flex flex-col gap-2">
+                       {recentGlobalCompanies.map((c, i) => (
                          <li 
-                           key={j.id} 
-                           onClick={() => router.push(`/jobs?jobId=${j.id}`)}
-                           className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-emerald-50/70' : 'bg-white'}`}
+                           key={c.id} 
+                           onClick={() => router.push('/companies?tab=global')}
+                           className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:border-brand-300 hover:shadow-sm transition-all group"
                          >
                            <div className="flex flex-col">
-                             <span className="text-sm font-semibold text-emerald-900">{j.title}</span>
-                             <span className="text-xs text-emerald-600/80 font-medium">at {j.company || 'Unknown'}</span>
+                             <span className="text-sm font-bold text-slate-800 group-hover:text-brand-700 transition-colors">{c.company_name}</span> 
+                             <span className="text-xs text-slate-500 font-medium mt-0.5">{c.sector || 'Unknown sector'}</span>
                            </div>
-                           <Badge bg={colors.bg} text={colors.text} dot={colors.dot}>
-                             {statusLabel(j.status)}
-                           </Badge>
+                           <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-100 rounded-md">New</span>
                          </li>
-                       );
-                     })}
-                   </ul>
-                 </div>
-               )}
-               {recentMyCompanies.length > 0 && (
-                 <div>
-                   <h4 
-                     onClick={() => router.push('/companies')}
-                     className="text-sm font-bold text-amber-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6 cursor-pointer hover:underline"
-                   >
-                     <span className="w-2 h-2 rounded-full bg-amber-500"></span> Tracked Companies
-                   </h4>
-                   <ul className="flex flex-col rounded-xl overflow-hidden border border-amber-100">
-                     {recentMyCompanies.map((c, i) => (
-                       <li 
-                         key={c.id} 
-                         onClick={() => router.push('/companies')}
-                         className={`flex items-center px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-amber-50/70' : 'bg-white'}`}
-                       >
-                         <span className="text-sm font-semibold text-amber-900">{c.companies?.company_name}</span>
-                       </li>
-                     ))}
-                   </ul>
-                 </div>
-               )}
-               {recentMyBoards.length > 0 && (
-                 <div>
-                   <h4 
-                     onClick={() => router.push('/boards')}
-                     className="text-sm font-bold text-rose-700 uppercase tracking-wider mb-3 flex items-center gap-2 mt-6 cursor-pointer hover:underline"
-                   >
-                     <span className="w-2 h-2 rounded-full bg-rose-500"></span> Browsed Portals
-                   </h4>
-                   <ul className="flex flex-col rounded-xl overflow-hidden border border-rose-100">
-                     {recentMyBoards.map((b, i) => (
-                       <li 
-                         key={b.id} 
-                         onClick={() => router.push('/boards')}
-                         className={`flex items-center px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity ${i % 2 === 0 ? 'bg-rose-50/70' : 'bg-white'}`}
-                       >
-                         <span className="text-sm font-semibold text-rose-900">{b.job_boards?.site}</span>
-                       </li>
-                     ))}
-                   </ul>
-                 </div>
-               )}
+                       ))}
+                     </ul>
+                   </div>
+                 )}
+                 {recentGlobalBoards.length > 0 && (
+                   <div>
+                     <h4 
+                       onClick={() => router.push('/boards')}
+                       className="text-[11px] font-black text-purple-700 uppercase tracking-widest mb-4 flex items-center gap-2 cursor-pointer hover:underline"
+                     >
+                       <span className="w-2 h-2 rounded-full bg-purple-500"></span> New Job Boards
+                     </h4>
+                     <ul className="flex flex-col gap-2">
+                       {recentGlobalBoards.map((b, i) => (
+                         <li 
+                           key={b.id} 
+                           onClick={() => router.push('/boards')}
+                           className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:border-purple-300 hover:shadow-sm transition-all group"
+                         >
+                           <span className="text-sm font-bold text-slate-800 group-hover:text-purple-700 transition-colors">{b.site}</span>
+                           <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-100 rounded-md">New</span>
+                         </li>
+                       ))}
+                     </ul>
+                   </div>
+                 )}
+               </div>
+             )}
+          </div>
+
+          {/* Personal Recent Activity */}
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm">
+             <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+               <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                 <span className="text-2xl">👤</span> Your Recent Activity
+               </h3>
+               <button className="text-sm font-bold text-brand-600 hover:text-brand-800 transition-colors">View all</button>
              </div>
-           )}
+             
+             {recentJobs.length === 0 && recentMyCompanies.length === 0 && recentMyBoards.length === 0 ? (
+               <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
+                 <div className="text-4xl mb-3 opacity-30">💤</div>
+                 <p className="text-sm font-medium text-slate-400">No personal tracking activity in the last 48 hours.</p>
+               </div>
+             ) : (
+               <div className="space-y-8">
+                 {recentJobs.length > 0 && (
+                   <div>
+                     <h4 
+                       onClick={() => router.push('/jobs')}
+                       className="text-[11px] font-black text-emerald-700 uppercase tracking-widest mb-4 flex items-center gap-2 cursor-pointer hover:underline"
+                     >
+                       <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Recent Jobs
+                     </h4>
+                     <ul className="flex flex-col gap-2">
+                       {recentJobs.map((j, i) => {
+                         const rawStatus = j.status;
+                         const dotColor = rawStatus === 'applied' ? 'bg-blue-500' : 
+                                          rawStatus === 'wishlist' ? 'bg-slate-500' : 
+                                          rawStatus === 'interview' ? 'bg-amber-500' : 
+                                          rawStatus === 'rejected' ? 'bg-rose-500' : 
+                                          rawStatus === 'offer' ? 'bg-emerald-500' : 'bg-brand-500';
+
+                         return (
+                           <li 
+                             key={j.id} 
+                             onClick={() => router.push(`/jobs?jobId=${j.id}`)}
+                             className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:border-emerald-300 hover:shadow-sm transition-all group"
+                           >
+                             <div className="flex flex-col">
+                               <span className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">{j.title}</span>
+                               <span className="text-xs text-slate-500 font-medium mt-0.5">at <span className="text-slate-600 font-semibold">{j.company || 'Unknown'}</span></span>
+                             </div>
+                             <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg shadow-sm">
+                               <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`}></span>
+                               {statusLabel(j.status)}
+                             </div>
+                           </li>
+                         );
+                       })}
+                     </ul>
+                   </div>
+                 )}
+                 {recentMyCompanies.length > 0 && (
+                   <div>
+                     <h4 
+                       onClick={() => router.push('/companies')}
+                       className="text-[11px] font-black text-amber-700 uppercase tracking-widest mb-4 flex items-center gap-2 cursor-pointer hover:underline"
+                     >
+                       <span className="w-2 h-2 rounded-full bg-amber-500"></span> Tracked Companies
+                     </h4>
+                     <ul className="flex flex-col gap-2">
+                       {recentMyCompanies.map((c, i) => (
+                         <li 
+                           key={c.id} 
+                           onClick={() => router.push('/companies')}
+                           className="flex items-center px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:border-amber-300 hover:shadow-sm transition-all group"
+                         >
+                           <span className="text-sm font-bold text-slate-800 group-hover:text-amber-700 transition-colors">{c.companies?.company_name}</span>
+                         </li>
+                       ))}
+                     </ul>
+                   </div>
+                 )}
+               </div>
+             )}
+          </div>
         </div>
+
       </div>
+
+      {/* Floating Action Button */}
+      <button className="fixed bottom-8 right-8 w-14 h-14 bg-brand-600 text-white rounded-full flex items-center justify-center shadow-xl shadow-brand-500/30 hover:bg-brand-500 hover:scale-105 hover:-translate-y-1 transition-all z-50">
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
+
     </div>
   );
 }
