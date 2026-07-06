@@ -120,9 +120,10 @@ export default function DashboardPage() {
     { 
       key: 'total', label: 'Total Jobs', icon: '📊', 
       trend: '↑ 12%', trendColor: 'text-emerald-500', 
-      bg: 'bg-brand-50', text: 'text-brand-600',
+      bg: 'bg-brand-100', text: 'text-brand-700',
+      cardBg: 'bg-indigo-50/60', borderColor: 'border-indigo-100',
       sparkline: (
-        <svg className="w-16 h-8 text-brand-200 stroke-current" fill="none" viewBox="0 0 100 40">
+        <svg className="w-16 h-8 text-brand-300 stroke-current" fill="none" viewBox="0 0 100 40">
           <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 30 Q 20 10, 40 20 T 80 10 T 100 5" />
         </svg>
       )
@@ -130,9 +131,10 @@ export default function DashboardPage() {
     { 
       key: 'applied', label: 'Applied', icon: '📤', 
       trend: '↑ 8%', trendColor: 'text-emerald-500', 
-      bg: 'bg-blue-50', text: 'text-blue-600',
+      bg: 'bg-blue-100', text: 'text-blue-700',
+      cardBg: 'bg-blue-50/60', borderColor: 'border-blue-100',
       sparkline: (
-        <svg className="w-16 h-8 text-blue-200 stroke-current" fill="none" viewBox="0 0 100 40">
+        <svg className="w-16 h-8 text-blue-300 stroke-current" fill="none" viewBox="0 0 100 40">
           <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 35 L 20 25 L 40 28 L 70 15 L 100 10" />
         </svg>
       )
@@ -140,9 +142,10 @@ export default function DashboardPage() {
     { 
       key: 'interview', label: 'Interviews', icon: '🎯', 
       trend: '→ 0%', trendColor: 'text-amber-500', 
-      bg: 'bg-amber-50', text: 'text-amber-600',
+      bg: 'bg-amber-100', text: 'text-amber-700',
+      cardBg: 'bg-amber-50/60', borderColor: 'border-amber-100',
       sparkline: (
-        <svg className="w-16 h-8 text-amber-200 stroke-current" fill="none" viewBox="0 0 100 40">
+        <svg className="w-16 h-8 text-amber-300 stroke-current" fill="none" viewBox="0 0 100 40">
           <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 20 L 30 20 L 70 20 L 100 20" />
         </svg>
       )
@@ -150,9 +153,10 @@ export default function DashboardPage() {
     { 
       key: 'rejected', label: 'Rejected', icon: '❌', 
       trend: '↓ 5%', trendColor: 'text-rose-500', 
-      bg: 'bg-rose-50', text: 'text-rose-600',
+      bg: 'bg-rose-100', text: 'text-rose-700',
+      cardBg: 'bg-rose-50/60', borderColor: 'border-rose-100',
       sparkline: (
-        <svg className="w-16 h-8 text-rose-200 stroke-current" fill="none" viewBox="0 0 100 40">
+        <svg className="w-16 h-8 text-rose-300 stroke-current" fill="none" viewBox="0 0 100 40">
           <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 10 L 30 15 L 60 25 L 100 35" />
         </svg>
       )
@@ -160,9 +164,10 @@ export default function DashboardPage() {
     { 
       key: 'offer', label: 'Offers', icon: '🎉', 
       trend: '→ 0%', trendColor: 'text-emerald-500', 
-      bg: 'bg-emerald-50', text: 'text-emerald-600',
+      bg: 'bg-emerald-100', text: 'text-emerald-700',
+      cardBg: 'bg-emerald-50/60', borderColor: 'border-emerald-100',
       sparkline: (
-        <svg className="w-16 h-8 text-emerald-200 stroke-current" fill="none" viewBox="0 0 100 40">
+        <svg className="w-16 h-8 text-emerald-300 stroke-current" fill="none" viewBox="0 0 100 40">
           <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M0 35 Q 20 35, 40 30 T 100 25" />
         </svg>
       )
@@ -183,10 +188,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="relative page-enter max-w-[1400px] mx-auto pb-24">
+    <div className="relative page-enter max-w-[1400px] mx-auto pb-24 min-h-screen">
+      {/* Decorative Background Blobs */}
+      <div className="absolute top-40 -left-20 w-96 h-96 bg-brand-100/40 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+      <div className="absolute top-[600px] right-0 w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+      
       {/* Background Graphic Masked */}
       <div 
-        className="absolute top-0 right-0 w-full h-[400px] z-0 pointer-events-none opacity-40 mix-blend-multiply" 
+        className="absolute top-0 right-0 w-full h-[450px] z-0 pointer-events-none opacity-40 mix-blend-multiply" 
         style={{ 
           backgroundImage: 'url(/hero_mountain.png)', 
           backgroundPosition: 'right top', 
@@ -304,7 +313,9 @@ export default function DashboardPage() {
                 }
               }}
               className={cn(
-                'relative bg-white border border-slate-200/60 rounded-2xl p-5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all overflow-hidden',
+                'relative border rounded-2xl p-5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all overflow-hidden',
+                card.cardBg,
+                card.borderColor,
                 `stagger-${i + 1}`
               )}
               style={{ animationFillMode: 'both' }}
