@@ -80,7 +80,13 @@ export default function Sidebar() {
   const sidebarContent = (
     <>
       {/* Background Graphic */}
-      <div className="absolute bottom-0 left-0 w-full z-0 opacity-70 mix-blend-screen pointer-events-none">
+      <div 
+        className="absolute bottom-0 left-0 w-full z-0 opacity-70 mix-blend-screen pointer-events-none"
+        style={{
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 50%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 50%)'
+        }}
+      >
         <img src="/night_landscape.png" alt="" className="w-full h-auto object-cover" />
       </div>
 
