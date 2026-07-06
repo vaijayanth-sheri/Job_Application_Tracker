@@ -24,6 +24,7 @@ export default function BoardsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [sortOrder, setSortOrder] = useState<'alpha' | 'recent'>('alpha');
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState<JobBoardDisplay | null>(null);
@@ -71,7 +72,14 @@ export default function BoardsPage() {
 
   useEffect(() => {
     fetchBoards();
+    const savedSort = localStorage.getItem('boardSortOrder');
+    if (savedSort === 'recent') setSortOrder('recent');
   }, [fetchBoards]);
+
+  const handleSortChange = (order: 'alpha' | 'recent') => {
+    setSortOrder(order);
+    localStorage.setItem('boardSortOrder', order);
+  };
 
   // Distinct values for smart suggestions
   const uniqueSites = Array.from(new Set(boards.map((b) => b.site).filter(Boolean)));
@@ -81,7 +89,14 @@ export default function BoardsPage() {
     (b) =>
       b.site.toLowerCase().includes(search.toLowerCase()) ||
       b.keywords.toLowerCase().includes(search.toLowerCase())
-  );
+  ).sort((a, b) => {
+    if (sortOrder === 'recent') {
+      const dateA = a.last_browsed ? new Date(a.last_browsed).getTime() : 0;
+      const dateB = b.last_browsed ? new Date(b.last_browsed).getTime() : 0;
+      if (dateB !== dateA) return dateB - dateA;
+    }
+    return a.site.localeCompare(b.site);
+  });
 
   const openCreate = () => {
     setEditingBoard(null);
@@ -255,19 +270,31 @@ export default function BoardsPage() {
         </Button>
       </div>
 
-      {/* Search */}
+      {/* Search & Filter */}
       {boards.length > 0 && (
-        <div className="relative max-w-md">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search boards or keywords..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm input-ring"
-          />
+        <div className="flex flex-col sm:flex-row gap-4 max-w-2xl">
+          <div className="relative flex-1">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search boards or keywords..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm input-ring"
+            />
+          </div>
+          <div className="sm:w-48">
+            <select
+              value={sortOrder}
+              onChange={(e) => handleSortChange(e.target.value as 'alpha' | 'recent')}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm input-ring bg-white text-gray-700 appearance-none cursor-pointer"
+            >
+              <option value="alpha">Alphabetical</option>
+              <option value="recent">Last Browsed</option>
+            </select>
+          </div>
         </div>
       )}
 
