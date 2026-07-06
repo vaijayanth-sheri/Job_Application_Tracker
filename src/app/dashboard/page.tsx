@@ -444,7 +444,12 @@ export default function DashboardPage() {
                <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
                  <span className="text-2xl">🌐</span> Global Ecosystem Updates
                </h3>
-               <button className="text-sm font-bold text-brand-600 hover:text-brand-800 transition-colors">View all</button>
+               <button 
+                 onClick={() => router.push('/companies?tab=global')}
+                 className="text-sm font-bold text-brand-600 hover:text-brand-800 transition-colors"
+               >
+                 View all
+               </button>
              </div>
              
              {recentGlobalCompanies.length === 0 && recentGlobalBoards.length === 0 ? (
@@ -511,7 +516,12 @@ export default function DashboardPage() {
                <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
                  <span className="text-2xl">👤</span> Your Recent Activity
                </h3>
-               <button className="text-sm font-bold text-brand-600 hover:text-brand-800 transition-colors">View all</button>
+               <button 
+                 onClick={() => router.push('/jobs')}
+                 className="text-sm font-bold text-brand-600 hover:text-brand-800 transition-colors"
+               >
+                 View all
+               </button>
              </div>
              
              {recentJobs.length === 0 && recentMyCompanies.length === 0 && recentMyBoards.length === 0 ? (
