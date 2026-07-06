@@ -181,15 +181,10 @@ export default function LoginPage() {
 
       {/* Right Side: Login Panel */}
       <div className="w-full lg:w-[40%] flex-shrink-0 bg-gradient-to-b from-[#2D2B52] to-[#1E1B4B] flex flex-col justify-center items-center p-8 sm:p-12 relative overflow-hidden z-20 shadow-2xl">
-        
-        {/* Dark Mode Toggle mockup */}
-        <div className="absolute top-8 right-8 w-10 h-10 rounded-full border border-white/20 bg-white/5 flex items-center justify-center text-white/60 cursor-pointer hover:bg-white/10 transition-colors">
-          ☀️
-        </div>
 
-        {/* Landscape Graphic at bottom */}
-        <div className="absolute bottom-0 left-0 w-full z-0 opacity-90 mix-blend-screen pointer-events-none">
-          <img src="/night_landscape.png" alt="Night Landscape" className="w-full h-auto object-cover" />
+        {/* Landscape Graphic */}
+        <div className="absolute inset-0 z-0 opacity-90 mix-blend-screen pointer-events-none">
+          <img src="/night_landscape.png" alt="Night Landscape" className="w-full h-full object-cover object-center" />
         </div>
 
         <div className="relative w-full max-w-[360px] mx-auto z-10">
