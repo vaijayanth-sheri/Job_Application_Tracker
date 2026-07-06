@@ -23,9 +23,7 @@ export default function DashboardPage() {
   const [recentGlobalCompanies, setRecentGlobalCompanies] = useState<any[]>([]);
   const [recentGlobalBoards, setRecentGlobalBoards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+
   
   // Header Dropdown States
   const [showNotifications, setShowNotifications] = useState(false);
@@ -78,36 +76,22 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
-  const filteredJobs = useMemo(() => {
-    let result = jobs;
-    if (statusFilter !== 'all') {
-      result = result.filter((j) => j.status === statusFilter);
-    }
-    if (dateFrom) {
-      result = result.filter((j) => j.applied_date >= dateFrom);
-    }
-    if (dateTo) {
-      result = result.filter((j) => j.applied_date <= dateTo);
-    }
-    return result;
-  }, [jobs, statusFilter, dateFrom, dateTo]);
-
   const stats = useMemo(() => {
     const counts = {
-      total: filteredJobs.length,
+      total: jobs.length,
       wishlist: 0,
       applied: 0,
       interview: 0,
       offer: 0,
       rejected: 0,
     };
-    filteredJobs.forEach((j) => {
+    jobs.forEach((j) => {
       if (counts[j.status as keyof typeof counts] !== undefined) {
         counts[j.status as keyof typeof counts]++;
       }
     });
     return counts;
-  }, [filteredJobs]);
+  }, [jobs]);
 
   const wishlistJobs = useMemo(() => jobs.filter(j => j.status === 'wishlist'), [jobs]);
   
@@ -392,48 +376,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-wrap items-end gap-5">
-          <div className="w-48">
-            <Select
-              label="Status"
-              options={statusOptions}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">From</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">To</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all"
-            />
-          </div>
-          {(statusFilter !== 'all' || dateFrom || dateTo) && (
-            <button
-              onClick={() => {
-                setStatusFilter('all');
-                setDateFrom('');
-                setDateTo('');
-              }}
-              className="flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700 pb-3 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              Clear filters
-            </button>
-          )}
-        </div>
+
 
         {/* Recent Activity Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
