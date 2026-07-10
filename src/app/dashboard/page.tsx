@@ -98,6 +98,40 @@ export default function DashboardPage() {
     return counts;
   }, [jobs]);
 
+  const trends = useMemo(() => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    const getTrend = (current: number, previous: number) => {
+      if (previous === 0) {
+        if (current > 0) return { text: '↑ 100%', color: 'text-emerald-500' };
+        return { text: '→ 0%', color: 'text-slate-400' };
+      }
+      const pct = Math.round(((current - previous) / previous) * 100);
+      if (pct > 0) return { text: `↑ ${pct}%`, color: 'text-emerald-500' };
+      if (pct < 0) return { text: `↓ ${Math.abs(pct)}%`, color: 'text-rose-500' };
+      return { text: '→ 0%', color: 'text-slate-400' };
+    };
+
+    const curTotal = jobs.filter(j => j.created_at >= sevenDaysAgo).length;
+    const prevTotal = jobs.filter(j => j.created_at >= fourteenDaysAgo && j.created_at < sevenDaysAgo).length;
+
+    const getStatusTrend = (status: string) => {
+      const cur = jobs.filter(j => j.status === status && j.updated_at >= sevenDaysAgo).length;
+      const prev = jobs.filter(j => j.status === status && j.updated_at >= fourteenDaysAgo && j.updated_at < sevenDaysAgo).length;
+      return getTrend(cur, prev);
+    };
+
+    return {
+      total: getTrend(curTotal, prevTotal),
+      applied: getStatusTrend('applied'),
+      interview: getStatusTrend('interview'),
+      offer: getStatusTrend('offer'),
+      rejected: getStatusTrend('rejected'),
+    };
+  }, [jobs]);
+
   const wishlistJobs = useMemo(() => jobs.filter(j => j.status === 'wishlist'), [jobs]);
   
   const recentJobs = useMemo(() => {
@@ -108,7 +142,7 @@ export default function DashboardPage() {
   const statCards = [
     { 
       key: 'total', label: 'Total Jobs', icon: '📊', 
-      trend: '↑ 12%', trendColor: 'text-emerald-500', 
+      trend: trends.total.text, trendColor: trends.total.color, 
       bg: 'bg-brand-100', text: 'text-brand-700',
       cardBg: 'bg-indigo-50/60', borderColor: 'border-indigo-100',
       sparkline: (
@@ -119,7 +153,7 @@ export default function DashboardPage() {
     },
     { 
       key: 'applied', label: 'Applied', icon: '📤', 
-      trend: '↑ 8%', trendColor: 'text-emerald-500', 
+      trend: trends.applied.text, trendColor: trends.applied.color, 
       bg: 'bg-blue-100', text: 'text-blue-700',
       cardBg: 'bg-blue-50/60', borderColor: 'border-blue-100',
       sparkline: (
@@ -130,7 +164,7 @@ export default function DashboardPage() {
     },
     { 
       key: 'interview', label: 'Interviews', icon: '🎯', 
-      trend: '→ 0%', trendColor: 'text-amber-500', 
+      trend: trends.interview.text, trendColor: trends.interview.color, 
       bg: 'bg-amber-100', text: 'text-amber-700',
       cardBg: 'bg-amber-50/60', borderColor: 'border-amber-100',
       sparkline: (
@@ -141,7 +175,7 @@ export default function DashboardPage() {
     },
     { 
       key: 'rejected', label: 'Rejected', icon: '❌', 
-      trend: '↓ 5%', trendColor: 'text-rose-500', 
+      trend: trends.rejected.text, trendColor: trends.rejected.color, 
       bg: 'bg-rose-100', text: 'text-rose-700',
       cardBg: 'bg-rose-50/60', borderColor: 'border-rose-100',
       sparkline: (
@@ -152,7 +186,7 @@ export default function DashboardPage() {
     },
     { 
       key: 'offer', label: 'Offers', icon: '🎉', 
-      trend: '→ 0%', trendColor: 'text-emerald-500', 
+      trend: trends.offer.text, trendColor: trends.offer.color, 
       bg: 'bg-emerald-100', text: 'text-emerald-700',
       cardBg: 'bg-emerald-50/60', borderColor: 'border-emerald-100',
       sparkline: (
