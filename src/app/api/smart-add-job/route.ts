@@ -35,6 +35,7 @@ Return ONLY a valid JSON object with exactly these fields (no markdown, no expla
   "location": "Extracted Location (empty string if not found)",
   "company_sector": "Extracted or Inferred Sector (e.g. Technology, Finance) (empty string if not found)",
   "company_website": "Extracted Website (empty string if not found)",
+  "recruiter_details": "Extracted recruiter name, email, or contact number. (If no details found, return exactly 'no data available')",
   "relevancy": 85,
   "interest_level": 3,
   "match_reasoning": "A 1-2 sentence explanation of why this is or isn't a good fit."
@@ -43,6 +44,7 @@ Return ONLY a valid JSON object with exactly these fields (no markdown, no expla
 Rules:
 - "relevancy" is an integer from 0 to 100 based on how well the user's skills match the job requirements. 100 is a perfect match.
 - "interest_level" is an integer from 1 to 5 estimating how interesting this role would be for the user.
+- "recruiter_details": Only extract appropriate details if explicitly available. Do NOT invent, hallucinate, or make false entries. If no recruiter details are found, you MUST return exactly "no data available".
 - Extract the job title, company name, location, and website directly from the job description.
 - If the sector or website is not in the job description, you may use your internal knowledge to infer them based on the company name.
 - CRITICAL GUARDRAIL: Analyze the JOB DESCRIPTION text carefully. If the text appears to be a generic company homepage, an article, or is clearly NOT a specific job posting, you MUST return EXACTLY this JSON: { "error": "NOT_A_JOB_POSTING" }. Do NOT invent or hallucinate a job title or requirements. Every search is independent.
@@ -93,6 +95,7 @@ Rules:
       location: parsedResult.location || '',
       company_sector: parsedResult.company_sector || '',
       company_website: parsedResult.company_website || '',
+      recruiter_details: parsedResult.recruiter_details === 'no data available' ? 'no data available' : (parsedResult.recruiter_details || ''),
       relevancy: typeof parsedResult.relevancy === 'number' ? parsedResult.relevancy : 50,
       interest_level: typeof parsedResult.interest_level === 'number' ? parsedResult.interest_level : 3,
       notes: parsedResult.match_reasoning ? `Match Reasoning: ${parsedResult.match_reasoning}` : ''

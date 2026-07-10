@@ -549,6 +549,7 @@ function JobsContent() {
         interest_level: typeof data.interest_level === 'number' ? data.interest_level : prev.interest_level,
         job_link: isUrl ? jobDescription.trim() : prev.job_link,
         notes: data.notes || prev.notes,
+        recruiter_details: data.recruiter_details || prev.recruiter_details,
         // applied_date, status, and other fields are intentionally left untouched
       }));
       setSmartCompanyData({
