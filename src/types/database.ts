@@ -21,6 +21,7 @@ export interface Job {
   interview_stage: string;
   job_link: string;
   notes: string;
+  recruiter_details: string;
   job_description?: string;
   created_at: string;
   updated_at: string;

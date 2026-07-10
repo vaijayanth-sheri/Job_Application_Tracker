@@ -56,6 +56,7 @@ const EMPTY_FORM: JobFormData = {
   interview_stage: '',
   job_link: '',
   notes: '',
+  recruiter_details: '',
 };
 
 type SortField = 'title' | 'company' | 'applied_date' | 'status' | 'relevancy' | 'interest_level' | 'created_at';
@@ -212,6 +213,7 @@ function JobsContent() {
       interview_stage: job.interview_stage,
       job_link: job.job_link,
       notes: job.notes,
+      recruiter_details: job.recruiter_details || '',
     });
     setScrapedDescription(job.job_description || '');
     setModalOpen(true);
@@ -880,6 +882,16 @@ function JobsContent() {
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={3}
               placeholder="Any additional notes..."
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-gray-700">Recruiter Details</label>
+            <textarea
+              value={form.recruiter_details}
+              onChange={(e) => setForm({ ...form, recruiter_details: e.target.value })}
+              rows={2}
+              placeholder="Recruiter name, email, phone number, etc."
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm input-ring resize-none"
             />
           </div>
