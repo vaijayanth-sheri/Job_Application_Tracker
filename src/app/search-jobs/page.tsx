@@ -49,6 +49,31 @@ export default function SearchJobsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<JobRow | null>(null);
 
+  // Load state from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const savedForm = sessionStorage.getItem("jobspy_form");
+      const savedJobId = sessionStorage.getItem("jobspy_jobId");
+      const savedMetadata = sessionStorage.getItem("jobspy_metadata");
+      const savedRows = sessionStorage.getItem("jobspy_rows");
+
+      if (savedForm) setForm(JSON.parse(savedForm));
+      if (savedJobId) setJobId(JSON.parse(savedJobId));
+      if (savedMetadata) setMetadata(JSON.parse(savedMetadata));
+      if (savedRows) setRows(JSON.parse(savedRows));
+    } catch (err) {
+      console.error("Failed to restore search state", err);
+    }
+  }, []);
+
+  // Save state to sessionStorage on change
+  useEffect(() => {
+    sessionStorage.setItem("jobspy_form", JSON.stringify(form));
+    sessionStorage.setItem("jobspy_jobId", JSON.stringify(jobId));
+    sessionStorage.setItem("jobspy_metadata", JSON.stringify(metadata));
+    sessionStorage.setItem("jobspy_rows", JSON.stringify(rows));
+  }, [form, jobId, metadata, rows]);
+
   const hoursOld = useMemo(() => {
     return form.freshnessUnit === "days"
       ? form.freshnessValue * 24
@@ -143,7 +168,7 @@ export default function SearchJobsPage() {
             Live Job Collector
           </h1>
           <p className="mt-2 text-lg text-gray-600 max-w-2xl">
-            Pull active job postings directly from multiple job boards using the Python integration.
+            Discover live job postings tailored to your preferences across top job boards.
           </p>
         </div>
 

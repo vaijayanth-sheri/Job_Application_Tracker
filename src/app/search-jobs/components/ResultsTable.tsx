@@ -87,6 +87,7 @@ export function ResultsTable({ rows, onAddJob }: { rows: JobRow[], onAddJob?: (r
                       className="inline-flex items-center gap-1.5 text-gray-600 hover:text-gray-900 font-medium transition-colors bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md"
                       title="Open Job Link"
                     >
+                      <span>Open</span>
                       <ExternalLink size={14} />
                     </a>
                   </div>
