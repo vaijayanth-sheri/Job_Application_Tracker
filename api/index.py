@@ -73,6 +73,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/api/py/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/api/py/sources")
+def sources() -> dict[str, list[dict[str, Any]]]:
+    return {
+        "sources": [
+            {"id": "linkedin", "label": "LinkedIn", "available": True},
+            {"id": "indeed", "label": "Indeed", "available": True},
+        ]
+    }
+
 @app.post("/api/py/searches", response_model=SearchResultsResponse)
 def create_search(request: SearchCreateRequest) -> SearchResultsResponse:
     try:
