@@ -1,7 +1,7 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { JobRow } from "../types";
 
-export function ResultsTable({ rows }: { rows: JobRow[] }) {
+export function ResultsTable({ rows, onAddJob }: { rows: JobRow[], onAddJob?: (row: JobRow) => void }) {
   if (rows.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center p-12 text-center">
@@ -43,7 +43,7 @@ export function ResultsTable({ rows }: { rows: JobRow[] }) {
                 Type
               </th>
               <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Link
+                Actions
               </th>
             </tr>
           </thead>
@@ -71,15 +71,25 @@ export function ResultsTable({ rows }: { rows: JobRow[] }) {
                   {row.employment_type ?? "-"}
                 </td>
                 <td className="px-6 py-4 text-sm text-right whitespace-nowrap">
-                  <a
-                    href={row.job_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-brand-600 hover:text-brand-800 font-medium transition-colors bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-md"
-                  >
-                    <span>Open</span>
-                    <ExternalLink size={14} />
-                  </a>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => onAddJob?.(row)}
+                      className="inline-flex items-center gap-1.5 text-brand-600 hover:text-brand-800 font-medium transition-colors bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-md"
+                      title="Add to My Jobs"
+                    >
+                      <Plus size={14} />
+                      <span>Add</span>
+                    </button>
+                    <a
+                      href={row.job_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-gray-600 hover:text-gray-900 font-medium transition-colors bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md"
+                      title="Open Job Link"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  </div>
                 </td>
               </tr>
             ))}

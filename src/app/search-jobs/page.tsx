@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, Download, Briefcase } from "lucide-react";
 import { SearchForm } from "./components/SearchForm";
 import { ResultsTable } from "./components/ResultsTable";
+import JobFormModals from "@/components/JobFormModals";
 import {
   FormState,
   JobRow,
@@ -43,6 +44,10 @@ export default function SearchJobsPage() {
   const [rows, setRows] = useState<JobRow[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Job add modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<JobRow | null>(null);
 
   const hoursOld = useMemo(() => {
     return form.freshnessUnit === "days"
@@ -116,6 +121,11 @@ export default function SearchJobsPage() {
     document.body.removeChild(link);
   }
 
+  function handleAddJob(row: JobRow) {
+    setSelectedJob(row);
+    setIsModalOpen(true);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50/50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -173,9 +183,25 @@ export default function SearchJobsPage() {
               )}
             </h2>
           </div>
-          <ResultsTable rows={rows} />
+          <ResultsTable rows={rows} onAddJob={handleAddJob} />
         </div>
       </div>
+
+      <JobFormModals
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onJobSaved={() => {
+          // You could optionally mark the row as "Added" here if you track it in the rows state.
+        }}
+        initialMode="smart"
+        autoAnalyzeUrl={selectedJob?.job_url}
+        initialData={selectedJob ? {
+          title: selectedJob.job_title ?? '',
+          company: selectedJob.company_name ?? '',
+          location: selectedJob.location ?? '',
+          job_link: selectedJob.job_url ?? '',
+        } : undefined}
+      />
     </div>
   );
 }
