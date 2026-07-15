@@ -9,11 +9,12 @@ from pathlib import Path
 from typing import Any, Callable
 
 import pandas as pd
+import tempfile
 from job_search.adapters import scrape_jobs
 
-
-OUTPUT_DIR = Path("output")
-RUNTIME_SEARCH_DIR = Path("runtime") / "searches"
+_temp_dir = Path(tempfile.gettempdir())
+OUTPUT_DIR = _temp_dir / "output"
+RUNTIME_SEARCH_DIR = _temp_dir / "searches"
 OUTPUT_COLUMNS = [
     "job_title",
     "company_name",

@@ -24,10 +24,6 @@ const defaultForm: FormState = {
   selectedSources: [
     "linkedin",
     "indeed",
-    "jobvector",
-    "arbeitsagentur",
-    "englishjobs",
-    "devjobs",
   ],
 };
 
