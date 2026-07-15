@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
-from api.py.job_search.scraper import (
+from api.job_search.scraper import (
     RUNTIME_SEARCH_DIR,
     SUPPORTED_JOBSPY_SOURCES,
     SearchMetadata,
