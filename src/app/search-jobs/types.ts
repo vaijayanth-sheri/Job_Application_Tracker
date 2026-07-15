@@ -1,5 +1,3 @@
-export type JobStatus = "queued" | "running" | "completed" | "failed";
-
 export type SourceOption = {
   id: string;
   label: string;
@@ -15,13 +13,6 @@ export type SearchMetadata = {
   final_count: number;
   csv_filename: string | null;
   timed_out: boolean;
-};
-
-export type SearchStatus = {
-  job_id: string;
-  status: JobStatus;
-  metadata: SearchMetadata | null;
-  error: string | null;
 };
 
 export type JobRow = {

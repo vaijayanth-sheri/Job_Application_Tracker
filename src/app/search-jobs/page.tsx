@@ -7,10 +7,8 @@ import { ResultsTable } from "./components/ResultsTable";
 import {
   FormState,
   JobRow,
-  JobStatus,
   SearchMetadata,
   SearchResults,
-  SearchStatus,
   SourceOption,
 } from "./types";
 
@@ -41,13 +39,10 @@ export default function SearchJobsPage() {
   const [sources, setSources] = useState<SourceOption[]>([]);
   const [form, setForm] = useState<FormState>(defaultForm);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [status, setStatus] = useState<SearchStatus | null>(null);
+  const [metadata, setMetadata] = useState<SearchMetadata | null>(null);
   const [rows, setRows] = useState<JobRow[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const isSearching =
-    status?.status === "queued" || status?.status === "running";
 
   const hoursOld = useMemo(() => {
     return form.freshnessUnit === "days"
@@ -61,44 +56,15 @@ export default function SearchJobsPage() {
       .catch(() => setMessage("Could not load source options. Make sure the Python backend is running."));
   }, []);
 
-  useEffect(() => {
-    if (!jobId || !isSearching) {
-      return;
-    }
-
-    const intervalId = window.setInterval(async () => {
-      try {
-        const nextStatus = await fetchJson<SearchStatus>(
-          `/api/py/searches/${jobId}`
-        );
-        setStatus(nextStatus);
-        if (nextStatus.status === "completed" || nextStatus.status === "failed") {
-          window.clearInterval(intervalId);
-          if (nextStatus.status === "completed") {
-            const result = await fetchJson<SearchResults>(
-              `/api/py/searches/${jobId}/results`
-            );
-            setRows(result.rows);
-          }
-        }
-      } catch (err) {
-        window.clearInterval(intervalId);
-        setMessage("Lost connection to the backend status check.");
-      }
-    }, 1600);
-
-    return () => window.clearInterval(intervalId);
-  }, [jobId, isSearching]);
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
     setRows([]);
-    setStatus(null);
+    setMetadata(null);
     setIsSubmitting(true);
 
     try {
-      const response = await fetchJson<{ job_id: string; status: JobStatus }>(
+      const response = await fetchJson<SearchResults>(
         "/api/py/searches",
         {
           method: "POST",
@@ -114,19 +80,40 @@ export default function SearchJobsPage() {
         }
       );
       setJobId(response.job_id);
-      setStatus({
-        job_id: response.job_id,
-        status: response.status,
-        metadata: null,
-        error: null,
-      });
+      setMetadata(response.metadata);
+      setRows(response.rows);
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Search could not be started."
+        error instanceof Error ? error.message : "Search failed."
       );
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleDownloadCSV() {
+    if (rows.length === 0) return;
+    const headers = ["job_title", "company_name", "location", "posting_date", "job_url", "source_website", "employment_type"];
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => 
+        headers.map(header => {
+          let val = (row as any)[header];
+          if (val === null || val === undefined) val = "";
+          const str = String(val);
+          return `"${str.replace(/"/g, '""')}"`;
+        }).join(",")
+      )
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `jobs_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   return (
@@ -158,48 +145,33 @@ export default function SearchJobsPage() {
           </div>
         )}
 
-        {status?.error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex gap-3">
-            <AlertCircle className="text-red-500 w-5 h-5 flex-shrink-0" />
-            <p className="text-sm text-red-700 font-medium">{status.error}</p>
-          </div>
-        )}
-
         {/* Search Form */}
         <SearchForm
           form={form}
           setForm={setForm}
           sources={sources}
           onSubmit={handleSubmit}
-          isSearching={isSearching}
+          isSearching={isSubmitting}
           isSubmitting={isSubmitting}
         />
 
         {/* Summary & Download Band */}
-        <SummaryBand metadata={status?.metadata ?? null} jobId={jobId} status={status?.status} />
+        <SummaryBand metadata={metadata} onDownload={handleDownloadCSV} />
 
         {/* Source Errors */}
-        <SourceErrorsPanel metadata={status?.metadata ?? null} />
+        <SourceErrorsPanel metadata={metadata} />
 
         {/* Results */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">
               Results{" "}
-              {status?.metadata?.final_count !== undefined && (
+              {metadata?.final_count !== undefined && (
                 <span className="text-gray-500 text-lg font-normal ml-2">
-                  ({status.metadata.final_count})
+                  ({metadata.final_count})
                 </span>
               )}
             </h2>
-            {status?.status && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  Status:
-                </span>
-                <StatusBadge status={status.status} />
-              </div>
-            )}
           </div>
           <ResultsTable rows={rows} />
         </div>
@@ -208,32 +180,14 @@ export default function SearchJobsPage() {
   );
 }
 
-function StatusBadge({ status }: { status: JobStatus }) {
-  const colors = {
-    queued: "bg-gray-100 text-gray-800",
-    running: "bg-blue-100 text-blue-800 animate-pulse",
-    completed: "bg-green-100 text-green-800",
-    failed: "bg-red-100 text-red-800",
-  };
-  return (
-    <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${colors[status]}`}
-    >
-      {status}
-    </span>
-  );
-}
-
 function SummaryBand({
   metadata,
-  jobId,
-  status,
+  onDownload,
 }: {
   metadata: SearchMetadata | null;
-  jobId: string | null;
-  status?: JobStatus;
+  onDownload: () => void;
 }) {
-  if (!metadata && !jobId) return null;
+  if (!metadata) return null;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-wrap items-center justify-between gap-6">
@@ -251,14 +205,14 @@ function SummaryBand({
         <Metric label="Exported" value={metadata?.final_count ?? "-"} highlighted />
       </div>
 
-      {jobId && status === "completed" && (
-        <a
-          href={`/api/py/searches/${jobId}/csv`}
+      {metadata.final_count > 0 && (
+        <button
+          onClick={onDownload}
           className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-lg font-medium shadow hover:bg-gray-800 transition-colors flex-shrink-0"
         >
           <Download size={18} />
           <span>Download CSV</span>
-        </a>
+        </button>
       )}
     </div>
   );

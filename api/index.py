@@ -29,13 +29,6 @@ DEFAULT_SOURCES = ["linkedin", "indeed"]
 MAX_WORKERS = 2
 
 
-class JobStatus(StrEnum):
-    queued = "queued"
-    running = "running"
-    completed = "completed"
-    failed = "failed"
-
-
 class SearchCreateRequest(BaseModel):
     keyword: str = Field(min_length=1, max_length=120)
     location: str = Field(min_length=1, max_length=120)
@@ -60,56 +53,10 @@ class SearchCreateRequest(BaseModel):
             raise ValueError("Select at least one job board.")
         return normalized
 
-
-class SearchCreateResponse(BaseModel):
-    job_id: str
-    status: JobStatus
-
-
-class SearchStatusResponse(BaseModel):
-    job_id: str
-    status: JobStatus
-    created_at: str
-    updated_at: str
-    request: dict[str, Any]
-    metadata: dict[str, Any] | None = None
-    error: str | None = None
-
-
 class SearchResultsResponse(BaseModel):
     job_id: str
     rows: list[dict[str, Any]]
     metadata: dict[str, Any]
-
-
-class SearchJob:
-    def __init__(self, job_id: str, request: SearchCreateRequest) -> None:
-        now = utc_now()
-        self.job_id = job_id
-        self.status = JobStatus.queued
-        self.created_at = now
-        self.updated_at = now
-        self.request = request
-        self.metadata: SearchMetadata | None = None
-        self.rows: list[dict[str, Any]] = []
-        self.csv_path: Path | None = None
-        self.error: str | None = None
-
-    def to_status_response(self) -> SearchStatusResponse:
-        return SearchStatusResponse(
-            job_id=self.job_id,
-            status=self.status,
-            created_at=self.created_at,
-            updated_at=self.updated_at,
-            request=self.request.model_dump(),
-            metadata=metadata_to_dict(self.metadata) if self.metadata else None,
-            error=self.error,
-        )
-
-
-def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
 
 def metadata_to_dict(metadata: SearchMetadata) -> dict[str, Any]:
     return asdict(metadata)
@@ -126,30 +73,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-jobs: dict[str, SearchJob] = {}
-jobs_lock = threading.Lock()
-
-
-@app.get("/api/py/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.get("/api/py/sources")
-def sources() -> dict[str, list[dict[str, Any]]]:
-    return {
-        "sources": [
-            {"id": "linkedin", "label": "LinkedIn", "available": True},
-            {"id": "indeed", "label": "Indeed", "available": True},
-        ]
-    }
-
-
-@app.post("/api/py/searches", response_model=SearchCreateResponse, status_code=202)
-def create_search(request: SearchCreateRequest) -> SearchCreateResponse:
+@app.post("/api/py/searches", response_model=SearchResultsResponse)
+def create_search(request: SearchCreateRequest) -> SearchResultsResponse:
     try:
-        build_search_params(
+        params = build_search_params(
             keyword=request.keyword,
             location=request.location,
             sources=request.sources,
@@ -161,113 +88,18 @@ def create_search(request: SearchCreateRequest) -> SearchCreateResponse:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     job_id = uuid.uuid4().hex
-    search_job = SearchJob(job_id=job_id, request=request)
-    with jobs_lock:
-        jobs[job_id] = search_job
-
-    executor.submit(run_search_job, job_id)
-    return SearchCreateResponse(job_id=job_id, status=JobStatus.queued)
-
-
-@app.get("/api/py/searches/{job_id}", response_model=SearchStatusResponse)
-def get_search(job_id: str) -> SearchStatusResponse:
-    return get_job(job_id).to_status_response()
-
-
-@app.get("/api/py/searches/{job_id}/results", response_model=SearchResultsResponse)
-def get_search_results(job_id: str) -> SearchResultsResponse:
-    search_job = get_job(job_id)
-    if search_job.status not in {JobStatus.completed, JobStatus.failed}:
-        raise HTTPException(status_code=409, detail="Search has not finished yet.")
-    if search_job.metadata is None:
-        raise HTTPException(status_code=404, detail="No results are available.")
-
-    return SearchResultsResponse(
-        job_id=job_id,
-        rows=search_job.rows,
-        metadata=metadata_to_dict(search_job.metadata),
-    )
-
-
-@app.get("/api/py/searches/{job_id}/csv")
-def download_search_csv(job_id: str) -> FileResponse:
-    search_job = get_job(job_id)
-    if search_job.status != JobStatus.completed:
-        raise HTTPException(status_code=409, detail="CSV is available after completion.")
-    if search_job.csv_path is None or not search_job.csv_path.exists():
-        raise HTTPException(status_code=404, detail="CSV file was not found.")
-
-    return FileResponse(
-        search_job.csv_path,
-        media_type="text/csv",
-        filename=search_job.csv_path.name,
-    )
-
-
-def get_job(job_id: str) -> SearchJob:
-    with jobs_lock:
-        search_job = jobs.get(job_id)
-    if search_job is None:
-        raise HTTPException(status_code=404, detail="Search job was not found.")
-    return search_job
-
-
-def run_search_job(job_id: str) -> None:
-    search_job = get_job(job_id)
-    update_job(job_id, status=JobStatus.running)
-
+    
     try:
-        request = search_job.request
-        params = build_search_params(
-            keyword=request.keyword,
-            location=request.location,
-            sources=request.sources,
-            results_per_source=request.results_per_source,
-            distance_km=request.distance_km,
-            hours_old=request.hours_old,
-        )
         result = run_search(
             params=params,
             output_dir=RUNTIME_SEARCH_DIR / job_id,
             filename_suffix=job_id[:8],
         )
-        final_status = JobStatus.completed
-        error = None
-        if result.metadata.source_errors and result.metadata.final_count == 0:
-            final_status = JobStatus.failed
-            error = "All supported sources failed or returned no exportable results."
-
-        update_job(
-            job_id,
-            status=final_status,
-            metadata=result.metadata,
+        return SearchResultsResponse(
+            job_id=job_id,
             rows=dataframe_to_records(result.jobs),
-            csv_path=result.csv_path,
-            error=error,
+            metadata=metadata_to_dict(result.metadata),
         )
     except Exception as exc:
         logging.exception("Search job %s failed", job_id)
-        update_job(job_id, status=JobStatus.failed, error=str(exc))
-
-
-def update_job(
-    job_id: str,
-    *,
-    status: JobStatus,
-    metadata: SearchMetadata | None = None,
-    rows: list[dict[str, Any]] | None = None,
-    csv_path: Path | None = None,
-    error: str | None = None,
-) -> None:
-    with jobs_lock:
-        search_job = jobs[job_id]
-        search_job.status = status
-        search_job.updated_at = utc_now()
-        if metadata is not None:
-            search_job.metadata = metadata
-        if rows is not None:
-            search_job.rows = rows
-        if csv_path is not None:
-            search_job.csv_path = csv_path
-        if error is not None:
-            search_job.error = error
+        raise HTTPException(status_code=500, detail=str(exc))
