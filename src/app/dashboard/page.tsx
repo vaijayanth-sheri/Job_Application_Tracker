@@ -14,7 +14,40 @@ const statusOptions: { value: string; label: string }[] = [
   { value: 'interview', label: 'Interview' },
   { value: 'offer', label: 'Offer' },
   { value: 'rejected', label: 'Rejected' },
+  { value: 'rejected', label: 'Rejected' },
 ];
+
+const NOTIFICATIONS = [
+  {
+    id: 'searchJobsFeature',
+    title: 'Search jobs from top Jobboards.',
+    message: 'Now, you can search for jobs with custom preferences across top job boards directly in this app. You can also add the jobs directly into your saved jobs.',
+    createdAt: new Date('2026-07-15T10:00:00Z').toISOString(),
+  },
+  {
+    id: 'recruiterFeature',
+    title: 'Now add recruiter details to a Job.',
+    message: 'A new column for recruiter details is added for jobs, also using smart add feature, AI will look and auto fill recruiter details if only available.',
+    createdAt: new Date('2026-07-08T10:00:00Z').toISOString(),
+  }
+];
+
+function formatTimeAgo(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return 'Just now';
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays === 1) return '1 day ago';
+  if (diffInDays < 30) return `${diffInDays} days ago`;
+  const diffInMonths = Math.floor(diffInDays / 30);
+  return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
+}
 
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -29,8 +62,8 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isNotificationRead, setIsNotificationRead] = useState(true); // default true to avoid hydration mismatch, set in useEffect
-  const unreadNotifications = isNotificationRead ? 0 : 1;
+  const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
+  const unreadNotifications = NOTIFICATIONS.filter(n => !readNotifications.has(n.id)).length;
   
   // Fake user profile details for UI mockup
   const userProfile = {
@@ -49,9 +82,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    const savedNotificationRead = localStorage.getItem('recruiterFeatureNotificationRead');
-    if (savedNotificationRead !== 'true') {
-      setIsNotificationRead(false);
+    const saved = localStorage.getItem('readNotifications');
+    if (saved) {
+      try {
+        setReadNotifications(new Set(JSON.parse(saved)));
+      } catch (e) {}
+    } else {
+      // Migrate old setting
+      const savedOld = localStorage.getItem('recruiterFeatureNotificationRead');
+      if (savedOld === 'true') {
+        const initialSet = new Set<string>();
+        initialSet.add('recruiterFeature');
+        setReadNotifications(initialSet);
+        localStorage.setItem('readNotifications', JSON.stringify(['recruiterFeature']));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -250,34 +294,43 @@ export default function DashboardPage() {
                     <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                       <h3 className="font-bold text-slate-800">Notifications</h3>
                     </div>
-                    <div className="p-4 max-h-[300px] overflow-y-auto">
-                      <div className={`flex gap-3 p-3 rounded-xl relative ${isNotificationRead ? 'opacity-70' : 'bg-brand-50/50 border border-brand-100/50'}`}>
-                        {!isNotificationRead && <div className="absolute top-3 right-3 w-2 h-2 bg-brand-500 rounded-full"></div>}
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800 pr-4 leading-tight">Now add recruiter details to a Job.</p>
-                          <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">A new column for recruiter details is added for jobs, also using smart add feature, AI will look and auto fill recruiter details if only available.</p>
-                          <div className="flex items-center justify-between mt-2">
-                            <p className="text-[10px] text-slate-400 font-medium">Just now</p>
-                            {!isNotificationRead && (
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsNotificationRead(true);
-                                  localStorage.setItem('recruiterFeatureNotificationRead', 'true');
-                                }}
-                                className="text-[11px] text-brand-600 font-semibold hover:text-brand-700 transition-colors"
-                              >
-                                Mark as read
-                              </button>
-                            )}
+                    <div className="p-4 max-h-[300px] overflow-y-auto space-y-3">
+                      {NOTIFICATIONS.map((notif) => {
+                        const isRead = readNotifications.has(notif.id);
+                        return (
+                          <div key={notif.id} className={`flex gap-3 p-3 rounded-xl relative ${isRead ? 'opacity-70' : 'bg-brand-50/50 border border-brand-100/50'}`}>
+                            {!isRead && <div className="absolute top-3 right-3 w-2 h-2 bg-brand-500 rounded-full"></div>}
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center">
+                              <svg className="w-5 h-5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800 pr-4 leading-tight">{notif.title}</p>
+                              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">{notif.message}</p>
+                              <div className="flex items-center justify-between mt-2">
+                                <p className="text-[10px] text-slate-400 font-medium">{formatTimeAgo(notif.createdAt)}</p>
+                                {!isRead && (
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setReadNotifications(prev => {
+                                        const next = new Set(prev);
+                                        next.add(notif.id);
+                                        localStorage.setItem('readNotifications', JSON.stringify(Array.from(next)));
+                                        return next;
+                                      });
+                                    }}
+                                    className="text-[11px] text-brand-600 font-semibold hover:text-brand-700 transition-colors"
+                                  >
+                                    Mark as read
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </>
