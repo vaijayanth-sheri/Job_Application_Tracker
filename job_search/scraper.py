@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import pandas as pd
-from api.job_search.adapters import scrape_jobs
+from job_search.adapters import scrape_jobs
 
 
 OUTPUT_DIR = Path("output")
