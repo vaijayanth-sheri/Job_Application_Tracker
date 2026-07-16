@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import Button from '@/components/ui/Button';
+import { getSiteUrl } from '@/lib/url';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,7 +67,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
+          redirectTo: `${getSiteUrl()}/dashboard`
         }
       });
       if (error) throw error;
