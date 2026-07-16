@@ -65,12 +65,8 @@ export default function DashboardPage() {
   const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
   const unreadNotifications = NOTIFICATIONS.filter(n => !readNotifications.has(n.id)).length;
   
-  // Fake user profile details for UI mockup
-  const userProfile = {
-    name: 'Vaijayanth Sheri',
-    initials: 'VS'
-  };
-
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState({ name: 'User', initials: 'U', email: '' });
   const supabase = createClient();
   const router = useRouter();
 
@@ -82,21 +78,41 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    const saved = localStorage.getItem('readNotifications');
-    if (saved) {
-      try {
-        setReadNotifications(new Set(JSON.parse(saved)));
-      } catch (e) {}
-    } else {
-      // Migrate old setting
-      const savedOld = localStorage.getItem('recruiterFeatureNotificationRead');
-      if (savedOld === 'true') {
-        const initialSet = new Set<string>();
-        initialSet.add('recruiterFeature');
-        setReadNotifications(initialSet);
-        localStorage.setItem('readNotifications', JSON.stringify(['recruiterFeature']));
+    
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id);
+        const email = user.email || '';
+        const namePart = email.split('@')[0];
+        const name = namePart ? namePart.charAt(0).toUpperCase() + namePart.slice(1) : 'User';
+        const initials = namePart ? namePart.substring(0, 2).toUpperCase() : 'U';
+        setUserProfile({ name, initials, email });
+
+        const storageKey = `readNotifications_${user.id}`;
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          try {
+            setReadNotifications(new Set(JSON.parse(saved)));
+          } catch (e) {}
+        } else {
+          // Fallback migrations
+          const oldSaved = localStorage.getItem('readNotifications');
+          if (oldSaved) {
+            try {
+              setReadNotifications(new Set(JSON.parse(oldSaved)));
+            } catch (e) {}
+          } else {
+            const savedOld = localStorage.getItem('recruiterFeatureNotificationRead');
+            if (savedOld === 'true') {
+              const initialSet = new Set<string>();
+              initialSet.add('recruiterFeature');
+              setReadNotifications(initialSet);
+            }
+          }
+        }
       }
-    }
+    });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -317,7 +333,9 @@ export default function DashboardPage() {
                                       setReadNotifications(prev => {
                                         const next = new Set(prev);
                                         next.add(notif.id);
-                                        localStorage.setItem('readNotifications', JSON.stringify(Array.from(next)));
+                                        if (userId) {
+                                          localStorage.setItem(`readNotifications_${userId}`, JSON.stringify(Array.from(next)));
+                                        }
                                         return next;
                                       });
                                     }}
