@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fetchWithFallback } from '@/lib/ai-fallback';
 
 export async function POST(req: Request) {
   try {
@@ -36,19 +37,8 @@ Rules:
 - Do NOT hallucinate. If you absolutely cannot find the company via search, return empty strings for the fields.
 `;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-    
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        tools: [{ googleSearch: {} }],
-        generationConfig: {
-          temperature: 0.2
-        }
-      })
-    });
+    const tools = [{ googleSearch: {} }];
+    const geminiRes = await fetchWithFallback(prompt, geminiApiKey, tools);
 
     if (!geminiRes.ok) {
       const errorText = await geminiRes.text();

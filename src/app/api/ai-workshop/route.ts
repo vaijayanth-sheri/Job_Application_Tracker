@@ -2,6 +2,9 @@ import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getActiveGemmaModel } from '@/lib/ai-fallback';
+
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
   try {
@@ -147,11 +150,26 @@ ${candidateDatabaseXML}
       apiKey: process.env.GEMINI_API_KEY || '',
     });
 
-    const result = await streamText({
-      model: google('gemini-2.5-flash'),
-      system: systemPrompt,
-      prompt: `JOB DESCRIPTION:\n\n${jobDescription}`,
-    });
+    let result;
+    try {
+      result = await streamText({
+        model: google('gemini-2.5-flash'),
+        system: systemPrompt,
+        prompt: `JOB DESCRIPTION:\n\n${jobDescription}`,
+      });
+    } catch (err: any) {
+      console.warn("[FALLBACK LOG] gemini-2.5-flash failed. Routing to backup...", err.message);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const gemmaModel = await getActiveGemmaModel(process.env.GEMINI_API_KEY || '');
+      console.warn(`[FALLBACK LOG] Using backup model: ${gemmaModel}`);
+      
+      result = await streamText({
+        model: google(gemmaModel),
+        system: systemPrompt,
+        prompt: `JOB DESCRIPTION:\n\n${jobDescription}`,
+      });
+    }
 
     return result.toTextStreamResponse();
   } catch (error: any) {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fetchWithFallback } from '@/lib/ai-fallback';
 
 export async function POST(req: Request) {
   try {
@@ -50,18 +51,7 @@ Rules:
 - CRITICAL GUARDRAIL: Analyze the JOB DESCRIPTION text carefully. If the text appears to be a generic company homepage, an article, or is clearly NOT a specific job posting, you MUST return EXACTLY this JSON: { "error": "NOT_A_JOB_POSTING" }. Do NOT invent or hallucinate a job title or requirements. Every search is independent.
     `;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-    
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2
-        }
-      })
-    });
+    const geminiRes = await fetchWithFallback(prompt, geminiApiKey);
 
     if (!geminiRes.ok) {
       const errorText = await geminiRes.text();
