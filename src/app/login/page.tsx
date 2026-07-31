@@ -48,7 +48,13 @@ export default function LoginPage() {
         router.push('/dashboard');
         router.refresh();
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            emailRedirectTo: `${getSiteUrl()}/auth/callback`
+          }
+        });
         if (error) throw error;
         setSuccess('Account created! Check your email to confirm, then sign in.');
         setMode('login');
