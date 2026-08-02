@@ -115,8 +115,8 @@ export default function QuickNotesPanel() {
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none" ref={panelRef}>
       {/* Panel */}
       <div 
-        className={`pointer-events-auto mb-4 transition-all duration-300 origin-bottom-right ease-out glass-card overflow-hidden w-80 max-h-[500px] flex flex-col shadow-2xl ${
-          isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4 pointer-events-none'
+        className={`mb-4 transition-all duration-300 origin-bottom-right ease-out glass-card overflow-hidden w-80 max-h-[500px] flex flex-col shadow-2xl ${
+          isOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 translate-y-4 pointer-events-none'
         }`}
       >
         <div className="bg-brand-600 px-4 py-3 flex justify-between items-center text-white">

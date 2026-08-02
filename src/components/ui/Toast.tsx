@@ -56,12 +56,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ addToast }}>
       {children}
       {/* Toast container */}
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2">
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
             className={cn(
-              'flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg bg-white border border-gray-100',
+              'flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg bg-white border border-gray-100 pointer-events-auto',
               'animate-toast-in min-w-[280px]'
             )}
           >
