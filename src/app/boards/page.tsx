@@ -17,6 +17,7 @@ const EMPTY_FORM: JobBoardFormData = {
   last_browsed: new Date().toISOString().split('T')[0],
   keywords: '',
   notes: '',
+  tag: 'Job Board',
 };
 
 export default function BoardsPage() {
@@ -54,6 +55,7 @@ export default function BoardsPage() {
         id: row.id,
         site: row.site,
         link: row.link,
+        tag: row.tag || 'Job Board',
         created_at: row.created_at,
         updated_at: row.updated_at,
         user_job_board_id: userBoard?.id,
@@ -84,6 +86,8 @@ export default function BoardsPage() {
   // Distinct values for smart suggestions
   const uniqueSites = Array.from(new Set(boards.map((b) => b.site).filter(Boolean)));
   const uniqueKeywords = Array.from(new Set(boards.map((b) => b.keywords).filter(Boolean)));
+  const uniqueTags = Array.from(new Set(boards.map((b) => b.tag).filter(Boolean)));
+
 
   const filtered = boards.filter(
     (b) =>
@@ -109,6 +113,7 @@ export default function BoardsPage() {
     setForm({
       site: board.site,
       link: board.link,
+      tag: board.tag || 'Job Board',
       last_browsed: board.user_job_board_id ? toInputDate(board.last_browsed) : new Date().toISOString().split('T')[0],
       keywords: board.keywords,
       notes: board.notes,
@@ -139,17 +144,17 @@ export default function BoardsPage() {
         } else {
           const { data: newBoard, error: createError } = await supabase
             .from('job_boards')
-            .insert({ site: form.site, link: form.link })
+            .insert({ site: form.site, link: form.link, tag: form.tag || 'Job Board' })
             .select()
             .single();
           if (createError) throw createError;
           globalBoardId = newBoard.id;
         }
       } else {
-        // We only allow updating the global site name and link here if needed
+        // We only allow updating the global site name, link, and tag here if needed
         const { error: updateGlobalError } = await supabase
           .from('job_boards')
-          .update({ site: form.site, link: form.link })
+          .update({ site: form.site, link: form.link, tag: form.tag || 'Job Board' })
           .eq('id', globalBoardId);
         if (updateGlobalError) throw updateGlobalError;
       }
@@ -319,7 +324,14 @@ export default function BoardsPage() {
                     {board.site.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{board.site}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900">{board.site}</h3>
+                      {board.tag && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-wider">
+                          {board.tag}
+                        </span>
+                      )}
+                    </div>
                     {board.user_job_board_id ? (
                       <p className="text-xs text-gray-400">Last: {formatDate(board.last_browsed)}</p>
                     ) : (
@@ -416,6 +428,13 @@ export default function BoardsPage() {
             onChange={(val) => setForm({ ...form, site: val })}
             required
             placeholder="LinkedIn, Indeed, etc."
+          />
+          <Combobox
+            label="Category Tag (Global)"
+            options={uniqueTags.length > 0 ? uniqueTags : ['Job Board', 'Company Directory', 'Marketplace']}
+            value={form.tag || ''}
+            onChange={(val) => setForm({ ...form, tag: val })}
+            placeholder="E.g., Job Board, Company Directory..."
           />
           <Input
             label="Link"

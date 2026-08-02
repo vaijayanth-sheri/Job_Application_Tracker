@@ -31,6 +31,7 @@ export interface JobBoard {
   id: string;
   site: string;
   link: string;
+  tag?: string;
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +101,7 @@ export type QuickNoteFormData = Omit<QuickNote, 'id' | 'user_id' | 'created_at' 
 export type JobBoardFormData = {
   site: string;
   link: string;
+  tag?: string;
   last_browsed: string;
   keywords: string;
   notes: string;

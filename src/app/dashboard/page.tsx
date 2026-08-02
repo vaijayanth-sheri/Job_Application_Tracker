@@ -559,7 +559,14 @@ export default function DashboardPage() {
                            onClick={() => router.push('/boards')}
                            className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:border-purple-300 hover:shadow-sm transition-all group"
                          >
-                           <span className="text-sm font-bold text-slate-800 group-hover:text-purple-700 transition-colors">{b.site}</span>
+                           <div className="flex items-center gap-2">
+                             <span className="text-sm font-bold text-slate-800 group-hover:text-purple-700 transition-colors">{b.site}</span>
+                             {b.tag && (
+                               <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-200 text-slate-600 uppercase tracking-wider">
+                                 {b.tag}
+                               </span>
+                             )}
+                           </div>
                            <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-100 rounded-md">New</span>
                          </li>
                        ))}
