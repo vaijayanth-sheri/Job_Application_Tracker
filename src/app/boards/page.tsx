@@ -86,7 +86,7 @@ export default function BoardsPage() {
   // Distinct values for smart suggestions
   const uniqueSites = Array.from(new Set(boards.map((b) => b.site).filter(Boolean)));
   const uniqueKeywords = Array.from(new Set(boards.map((b) => b.keywords).filter(Boolean)));
-  const uniqueTags = Array.from(new Set(boards.map((b) => b.tag).filter(Boolean)));
+  const uniqueTags = Array.from(new Set(boards.map((b) => b.tag).filter((tag): tag is string => Boolean(tag))));
 
 
   const filtered = boards.filter(
