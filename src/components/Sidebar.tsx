@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 const navItems = [
   {
@@ -88,15 +89,9 @@ export default function Sidebar() {
 
   const sidebarContent = (
     <>
-      {/* Background Graphic */}
-      <div 
-        className="absolute bottom-0 left-0 w-full z-0 opacity-70 mix-blend-screen pointer-events-none"
-        style={{
-          maskImage: 'linear-gradient(to bottom, transparent 0%, black 50%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 50%)'
-        }}
-      >
-        <img src="/night_landscape.png" alt="" className="w-full h-auto object-cover" />
+      {/* Footer graphic */}
+      <div className="absolute inset-x-0 bottom-0 pointer-events-none z-0">
+        <Image src="/night_landscape.png" alt="" width={300} height={200} className="w-full h-auto object-cover" />
       </div>
 
       <div className="relative z-10 flex flex-col h-full">

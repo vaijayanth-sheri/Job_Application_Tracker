@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import Button from '@/components/ui/Button';
 import { getSiteUrl } from '@/lib/url';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -131,7 +132,7 @@ export default function LoginPage() {
 
         {/* Mountain Graphic - Absolute positioned to float on the right edge of left panel */}
         <div className="hidden xl:block absolute right-[-100px] top-1/2 -translate-y-1/2 w-[550px] opacity-90 z-0 pointer-events-none mix-blend-multiply">
-          <img src="/hero_mountain.png" alt="Mountain Illustration" className="w-full h-auto object-contain" />
+          <Image src="/hero_mountain.png" alt="Mountain Illustration" width={550} height={550} className="w-full h-auto object-contain" />
         </div>
 
         <div className="relative z-10 max-w-2xl w-full">
@@ -209,7 +210,7 @@ export default function LoginPage() {
 
         {/* Landscape Graphic */}
         <div className="absolute inset-0 z-0 opacity-90 mix-blend-screen pointer-events-none">
-          <img src="/night_landscape.png" alt="Night Landscape" className="w-full h-full object-cover object-center" />
+          <Image src="/night_landscape.png" alt="Night Landscape" fill className="object-cover object-center" />
         </div>
 
         <div className="relative w-full max-w-[360px] mx-auto z-10">
