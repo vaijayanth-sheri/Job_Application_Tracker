@@ -50,13 +50,13 @@ export function ResultsTable({ rows, onAddJob }: { rows: JobRow[], onAddJob?: (r
           <tbody className="bg-white divide-y divide-gray-200">
             {rows.map((row) => (
               <tr key={row.job_url} className="group hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-[200px] truncate" title={row.job_title}>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-[200px] truncate" title={row.job_title || undefined}>
                   {row.job_title ?? "-"}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600 max-w-[150px] truncate" title={row.company_name}>
+                <td className="px-6 py-4 text-sm text-gray-600 max-w-[150px] truncate" title={row.company_name || undefined}>
                   {row.company_name ?? "-"}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600 max-w-[150px] truncate" title={row.location}>
+                <td className="px-6 py-4 text-sm text-gray-600 max-w-[150px] truncate" title={row.location || undefined}>
                   {row.location ?? "-"}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
