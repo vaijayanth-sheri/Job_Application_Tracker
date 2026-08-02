@@ -42,35 +42,35 @@ export function ResultsTable({ rows, onAddJob }: { rows: JobRow[], onAddJob?: (r
               <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Type
               </th>
-              <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-10">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {rows.map((row) => (
-              <tr key={row.job_url} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate">
+              <tr key={row.job_url} className="group hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-[200px] truncate" title={row.job_title}>
                   {row.job_title ?? "-"}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                <td className="px-6 py-4 text-sm text-gray-600 max-w-[150px] truncate" title={row.company_name}>
                   {row.company_name ?? "-"}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
+                <td className="px-6 py-4 text-sm text-gray-600 max-w-[150px] truncate" title={row.location}>
                   {row.location ?? "-"}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                   {row.posting_date ?? "-"}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-600">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-brand-700 capitalize">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-brand-700 capitalize max-w-[100px] truncate">
                     {row.source_website ?? "-"}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                   {row.employment_type ?? "-"}
                 </td>
-                <td className="px-6 py-4 text-sm text-right whitespace-nowrap">
+                <td className="px-6 py-4 text-sm text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-gray-50 transition-colors shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-10">
                   <div className="flex items-center justify-end gap-2">
                     <button
                       onClick={() => onAddJob?.(row)}
